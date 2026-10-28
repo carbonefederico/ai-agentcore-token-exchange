@@ -80,11 +80,16 @@ GENERATED_VALUES="$(mktemp -t pf-agentcore-values).yaml"
 mv "${GENERATED_VALUES%.yaml}" "${GENERATED_VALUES}"
 trap 'rm -f "${GENERATED_VALUES}"' EXIT
 
+# Under the umbrella chart, subchart values must be nested under the
+# dependency key (ping-devops:); the perf sibling uses the chart directly and
+# writes pingfederate-admin.envs at the top level — here that path is
+# invisible to the subchart and env vars silently never reach the pods.
 cat > "${GENERATED_VALUES}" <<EOF
-pingfederate-admin:
-  envs:
-    DEMO_USERNAME: "${DEMO_USERNAME}"
-    DEMO_PASSWORD: "${DEMO_PASSWORD}"
+ping-devops:
+  pingfederate-admin:
+    envs:
+      DEMO_USERNAME: "${DEMO_USERNAME}"
+      DEMO_PASSWORD: "${DEMO_PASSWORD}"
     AWS_STS_ISSUER: "${AWS_STS_ISSUER:?AWS_STS_ISSUER required — run ./aws/setup-identity.sh (it writes it into .env)}"
     AWS_STS_JWKS_URL: "${AWS_STS_JWKS_URL:?AWS_STS_JWKS_URL required — run ./aws/setup-identity.sh (it writes it into .env)}"
     PF_TOKEN_ENDPOINT_AUDIENCE: "${PF_TOKEN_ENDPOINT_AUDIENCE}"
@@ -96,6 +101,14 @@ pingfederate-admin:
     PF_CLI_REDIRECT_URI: "${PF_CLI_REDIRECT_URI}"
     PF_AGENT_CLIENT_ID: "${PF_AGENT_CLIENT_ID}"
     PING_IDENTITY_PASSWORD: "${PING_IDENTITY_PASSWORD}"
+    SERVER_PROFILE_URL: "${PROFILE_URL_WITH_CREDS}"
+    SERVER_PROFILE_PATH: "${PROFILE_PATH}"
+    SERVER_PROFILE_BRANCH: "${SERVER_PROFILE_BRANCH}"
+  pingfederate-engine:
+    envs:
+      SERVER_PROFILE_URL: "${PROFILE_URL_WITH_CREDS}"
+      SERVER_PROFILE_PATH: "${PROFILE_PATH}"
+      SERVER_PROFILE_BRANCH: "${SERVER_PROFILE_BRANCH}"
 EOF
 
 if [[ "${HAVE_SECRET}" == "yes" ]]; then
@@ -124,12 +137,6 @@ helm upgrade --install "${PF_RELEASE}" "${CHART_DIR}" \
   --namespace "${NAMESPACE}" ${CREATE_NS} \
   --values "${CHART_DIR}/values.yaml" \
   --values "${GENERATED_VALUES}" \
-  --set-string pingfederate-admin.envs.SERVER_PROFILE_URL="${PROFILE_URL_WITH_CREDS}" \
-  --set-string pingfederate-admin.envs.SERVER_PROFILE_PATH="${PROFILE_PATH}" \
-  --set-string pingfederate-admin.envs.SERVER_PROFILE_BRANCH="${SERVER_PROFILE_BRANCH}" \
-  --set-string pingfederate-engine.envs.SERVER_PROFILE_URL="${PROFILE_URL_WITH_CREDS}" \
-  --set-string pingfederate-engine.envs.SERVER_PROFILE_PATH="${PROFILE_PATH}" \
-  --set-string pingfederate-engine.envs.SERVER_PROFILE_BRANCH="${SERVER_PROFILE_BRANCH}" \
   ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
   --wait --timeout 15m
 
