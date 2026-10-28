@@ -9,7 +9,10 @@ if [[ -f "${ROOT_DIR}/.env" ]]; then
   set +a
 fi
 
-NAMESPACE="${NAMESPACE:-pf-agentcore}"
+# No NAMESPACE logic here: the namespace is an install-time decision passed
+# to the scripts (-n) or resolved by kubectl from the current context —
+# matching plain helm workflow. PF release name follows the ping-devops
+# hostname convention (<release>-pingfederate-engine.ping-devops.com).
 PF_RELEASE="${PF_RELEASE:-pf}"
 
 require_command() {

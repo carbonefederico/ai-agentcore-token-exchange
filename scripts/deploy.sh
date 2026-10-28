@@ -2,13 +2,34 @@
 # Deploy PingFederate (1 admin + 2 engines) configured for the AgentCore
 # secretless token exchange. The server profile's bulk config is imported at
 # admin startup. TLS terminates on the cluster ingress (nginx-public class,
-# cert-manager Let's Encrypt cert) — the engines' own TLS config is not
-# validated by anything and needs no key material from this repo.
+# wildcard *.ping-devops.com controller cert).
+#
+# Namespace is an install-time decision, as with any helm chart:
+#   ./scripts/deploy.sh -n <namespace> [--create-namespace]
+# Defaults to the current kubectl context's namespace.
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 require_command kubectl
 require_command helm
+
+# --- Pass-through arguments: -n <ns>, --create-namespace, --set key=val ----
+NAMESPACE=""
+CREATE_NS=""
+EXTRA_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -n|--namespace) NAMESPACE="$2"; shift 2 ;;
+    --create-namespace) CREATE_NS="--create-namespace"; shift ;;
+    --set) EXTRA_ARGS+=("--set-string" "$2"); shift 2 ;;
+    *) echo "Unknown argument: $1" >&2; exit 1 ;;
+  esac
+done
+if [[ -z "${NAMESPACE}" ]]; then
+  NAMESPACE="$(kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
+  NAMESPACE="${NAMESPACE:-default}"
+  echo "No -n given; using the current context's namespace: ${NAMESPACE}"
+fi
 
 # Operator credentials (Ping DevOps license) are carried by the cluster's
 # devops-secret. Create it only when missing, from env vars supplied by the
@@ -32,7 +53,7 @@ SERVER_PROFILE_BRANCH="${SERVER_PROFILE_BRANCH:-$(awk '/^profile:/{f=1;next} f&&
   exit 1
 }
 
-# --- Derived values (override in .env only to deviate) ----------------------
+# --- Derived values (override via env or --set to deviate) ------------------
 # Public hostname follows the standard ping-devops chart convention, as in
 # the operator's other deployments: <release>-<product>.ping-devops.com,
 # served by the public nginx controller's wildcard *.ping-devops.com cert.
@@ -77,7 +98,6 @@ pingfederate-admin:
     PING_IDENTITY_PASSWORD: "${PING_IDENTITY_PASSWORD}"
 EOF
 
-kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 if [[ "${HAVE_SECRET}" == "yes" ]]; then
   echo "devops-secret already exists in ${NAMESPACE}; leaving it untouched."
 else
@@ -91,18 +111,18 @@ fi
 # The image's git clone reads credentials from the SERVER_PROFILE_URL itself
 # (envsubst expands the placeholders inside the pod, supplied by the chart's
 # optional *-git-secret).
-PROFILE_URL_WITH_CREDS="${SERVER_PROFILE_URL}"
-case "${SERVER_PROFILE_URL}" in
+PROFILE_URL_WITH_CREDS="${PROFILE_URL}"
+case "${PROFILE_URL}" in
   https://*)
-    PROFILE_URL_WITH_CREDS="https://\${SERVER_PROFILE_GIT_USER}:\${SERVER_PROFILE_GIT_PASSWORD}@${SERVER_PROFILE_URL#https://}"
+    PROFILE_URL_WITH_CREDS="https://\${SERVER_PROFILE_GIT_USER}:\${SERVER_PROFILE_GIT_PASSWORD}@${PROFILE_URL#https://}"
     ;;
 esac
 
-helm dependency update "${ROOT_DIR}/helm/pingfederate"
+helm dependency update "${CHART_DIR}"
 
-helm upgrade --install "${PF_RELEASE}" "${ROOT_DIR}/helm/pingfederate" \
-  --namespace "${NAMESPACE}" \
-  --values "${ROOT_DIR}/helm/pingfederate/values.yaml" \
+helm upgrade --install "${PF_RELEASE}" "${CHART_DIR}" \
+  --namespace "${NAMESPACE}" ${CREATE_NS} \
+  --values "${CHART_DIR}/values.yaml" \
   --values "${GENERATED_VALUES}" \
   --set-string pingfederate-admin.envs.SERVER_PROFILE_URL="${PROFILE_URL_WITH_CREDS}" \
   --set-string pingfederate-admin.envs.SERVER_PROFILE_PATH="${PROFILE_PATH}" \
@@ -110,6 +130,7 @@ helm upgrade --install "${PF_RELEASE}" "${ROOT_DIR}/helm/pingfederate" \
   --set-string pingfederate-engine.envs.SERVER_PROFILE_URL="${PROFILE_URL_WITH_CREDS}" \
   --set-string pingfederate-engine.envs.SERVER_PROFILE_PATH="${PROFILE_PATH}" \
   --set-string pingfederate-engine.envs.SERVER_PROFILE_BRANCH="${SERVER_PROFILE_BRANCH}" \
+  ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
   --wait --timeout 15m
 
 echo
