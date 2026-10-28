@@ -1,0 +1,397 @@
+{
+  "metadata": {
+    "pfVersion": "13.1.2.0"
+  },
+  "operations": [
+    {
+      "operationType": "SAVE",
+      "resourceType": "/administrativeAccounts",
+      "items": [
+        {
+          "username": "Administrator",
+          "password": "${PING_IDENTITY_PASSWORD}",
+          "roles": [
+            "EXPRESSION_ADMINISTRATOR",
+            "USER_ADMINISTRATOR",
+            "ADMINISTRATOR",
+            "CRYPTO_ADMINISTRATOR"
+          ],
+          "auditor": false,
+          "description": "Initial administrator user.",
+          "active": true
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/license/agreement",
+      "items": [
+        {
+          "accepted": true,
+          "licenseAgreementUrl": "https://${PF_ADMIN_PUBLIC_HOSTNAME}/pf-admin-api/license-agreement"
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/idp/adapters",
+      "items": [
+        {
+          "instanceId": "DemoFormAdapter",
+          "name": "Demo Form Adapter",
+          "pluginDescriptorRef": {
+            "id": "com.pingidentity.adapters.simple.idp.SimpleIdpAdapter"
+          },
+          "configuration": {
+            "fields": [
+              { "name": "username", "value": "${DEMO_USERNAME}" },
+              { "name": "password", "value": "${DEMO_PASSWORD}" }
+            ]
+          },
+          "attributeContract": {
+            "coreAttributes": [
+              { "name": "username" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/idp/tokenProcessors",
+      "items": [
+        {
+          "id": "AgentCorePingFederateUserProcessor",
+          "name": "AgentCore PingFederate User Token Processor",
+          "pluginDescriptorRef": {
+            "id": "com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor"
+          },
+          "configuration": {
+            "fields": [
+              { "name": "Require Audience", "value": "true" },
+              { "name": "Require Expiration Time", "value": "true" },
+              { "name": "Allowed Clock Skew", "value": "10" }
+            ],
+            "tables": [
+              {
+                "name": "Allowed Issuers",
+                "rows": [
+                  {
+                    "fields": [
+                      { "name": "Issuer", "value": "${OUTPUT_ISSUER}" },
+                      { "name": "JWKS URL", "value": "${OUTPUT_JWKS_URL}" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Allowed Audiences",
+                "rows": [
+                  {
+                    "fields": [
+                      { "name": "Audience", "value": "${RUNTIME_API_AUDIENCE}" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "attributeContract": {
+            "coreAttributes": [{ "name": "sub" }],
+            "extendedAttributes": []
+          }
+        },
+        {
+          "id": "AgentCoreAwsStsTokenProcessor",
+          "name": "AgentCore AWS STS Token Processor",
+          "pluginDescriptorRef": {
+            "id": "com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor"
+          },
+          "configuration": {
+            "fields": [
+              { "name": "Require Audience", "value": "true" },
+              { "name": "Require Expiration Time", "value": "true" },
+              { "name": "Allowed Clock Skew", "value": "10" }
+            ],
+            "tables": [
+              {
+                "name": "Allowed Issuers",
+                "rows": [
+                  {
+                    "fields": [
+                      { "name": "Issuer", "value": "${AWS_STS_ISSUER}" },
+                      { "name": "JWKS URL", "value": "${AWS_STS_JWKS_URL}" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Allowed Audiences",
+                "rows": [
+                  {
+                    "fields": [
+                      { "name": "Audience", "value": "${PF_TOKEN_ENDPOINT_AUDIENCE}" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "attributeContract": {
+            "coreAttributes": [{ "name": "sub" }],
+            "extendedAttributes": []
+          }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/oauth/accessTokenManagers",
+      "items": [
+        {
+          "id": "AgentCoreDelegatedATM",
+          "name": "AgentCore Delegated Access Token Manager",
+          "pluginDescriptorRef": {
+            "id": "com.pingidentity.pf.access.token.management.plugins.JwtBearerAccessTokenManagementPlugin"
+          },
+          "configuration": {
+            "tables": [
+              { "name": "Symmetric Keys", "rows": [] },
+              { "name": "Certificates", "rows": [] }
+            ],
+            "fields": [
+              { "name": "Token Lifetime", "value": "15" },
+              { "name": "Use Centralized Signing Key", "value": "true" },
+              { "name": "JWS Algorithm", "value": "RS256" },
+              { "name": "Issuer Claim Value", "value": "${OUTPUT_ISSUER}" },
+              { "name": "Audience Claim Value", "value": "" },
+              { "name": "Type Header Value", "value": "at+jwt" },
+              { "name": "Include Key ID Header Parameter", "value": "true" },
+              { "name": "Include Issued At Claim", "value": "true" }
+            ]
+          },
+          "attributeContract": {
+            "coreAttributes": [],
+            "extendedAttributes": [
+              { "name": "sub" },
+              { "name": "act" },
+              { "name": "aud" }
+            ]
+          },
+          "selectionSettings": {
+            "resourceUris": ["${DEMO_RESOURCE_URI}"]
+          },
+          "accessControlSettings": { "restrictClients": false, "allowedClients": [] }
+        },
+        {
+          "id": "AgentCoreUserATM",
+          "name": "AgentCore User Access Token Manager",
+          "pluginDescriptorRef": {
+            "id": "com.pingidentity.pf.access.token.management.plugins.JwtBearerAccessTokenManagementPlugin"
+          },
+          "configuration": {
+            "tables": [
+              { "name": "Symmetric Keys", "rows": [] },
+              { "name": "Certificates", "rows": [] }
+            ],
+            "fields": [
+              { "name": "Token Lifetime", "value": "15" },
+              { "name": "Use Centralized Signing Key", "value": "true" },
+              { "name": "JWS Algorithm", "value": "RS256" },
+              { "name": "Issuer Claim Value", "value": "${OUTPUT_ISSUER}" },
+              { "name": "Audience Claim Value", "value": "${RUNTIME_API_AUDIENCE}" },
+              { "name": "Type Header Value", "value": "at+jwt" },
+              { "name": "Include Key ID Header Parameter", "value": "true" },
+              { "name": "Include Issued At Claim", "value": "true" }
+            ]
+          },
+          "attributeContract": {
+            "coreAttributes": [],
+            "extendedAttributes": [
+              { "name": "sub" }
+            ]
+          },
+          "accessControlSettings": { "restrictClients": false, "allowedClients": [] }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/oauth/tokenExchange/processor/policies",
+      "items": [
+        {
+          "id": "AgentCoreTokenExchangePolicy",
+          "name": "AgentCore Token Exchange Policy",
+          "actorTokenRequired": true,
+          "attributeContract": {
+            "coreAttributes": [{ "name": "subject" }],
+            "extendedAttributes": [
+              { "name": "subject_act" }
+            ]
+          },
+          "processorMappings": [
+            {
+              "attributeSources": [],
+              "subjectTokenType": "urn:ietf:params:oauth:token-type:jwt",
+              "subjectTokenProcessor": {
+                "id": "AgentCorePingFederateUserProcessor",
+                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/AgentCorePingFederateUserProcessor"
+              },
+              "actorTokenType": "urn:ietf:params:oauth:token-type:jwt",
+              "actorTokenProcessor": {
+                "id": "AgentCoreAwsStsTokenProcessor",
+                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/AgentCoreAwsStsTokenProcessor"
+              },
+              "attributeContractFulfillment": {
+                "subject": {
+                  "source": { "type": "SUBJECT_TOKEN" },
+                  "value": "sub"
+                },
+                "subject_act": {
+                  "source": { "type": "ACTOR_TOKEN" },
+                  "value": "sub"
+                }
+              },
+              "issuanceCriteria": { "conditionalCriteria": [] }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/oauth/tokenExchange/processor/settings",
+      "items": [
+        {
+          "defaultProcessorPolicyRef": {
+            "id": "AgentCoreTokenExchangePolicy",
+            "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/oauth/tokenExchange/processor/policies/AgentCoreTokenExchangePolicy"
+          }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/oauth/authServerSettings",
+      "items": [
+        {
+          "scopes": [
+            {
+              "name": "demo:read",
+              "description": "Read the demo resource on behalf of the user",
+              "dynamic": false
+            }
+          ],
+          "authorizationCodeTimeout": 60,
+          "authorizationCodeEntropy": 30,
+          "refreshTokenLength": 42,
+          "refreshRollingInterval": 0
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/oauth/accessTokenMappings",
+      "items": [
+        {
+          "id": "AgentCoreTokenExchangeMapping",
+          "context": {
+            "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY",
+            "contextRef": {
+              "id": "AgentCoreTokenExchangePolicy",
+              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/oauth/tokenExchange/processor/policies/AgentCoreTokenExchangePolicy"
+            }
+          },
+          "accessTokenManagerRef": {
+            "id": "AgentCoreDelegatedATM",
+            "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/oauth/accessTokenManagers/AgentCoreDelegatedATM"
+          },
+          "attributeSources": [],
+          "attributeContractFulfillment": {
+            "sub": {
+              "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" },
+              "value": "subject"
+            },
+            "aud": {
+              "source": { "type": "EXPRESSION" },
+              "value": "#this.get(\"context.OAuthResources\")"
+            },
+            "act": {
+              "source": { "type": "EXPRESSION" },
+              "value": "#curr = #this.get(\"tepp.subject_act\") != null ? #this.get(\"tepp.subject_act\").getObjectValue().toString() : \"\", #out = new java.util.LinkedHashMap(), #out.put(\"sub\", #curr), #out"
+            }
+          },
+          "issuanceCriteria": { "conditionalCriteria": [] }
+        },
+        {
+          "id": "AgentCoreAuthCodeMapping",
+          "context": {
+            "type": "AUTHORIZATION_CODE"
+          },
+          "accessTokenManagerRef": {
+            "id": "AgentCoreUserATM",
+            "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/oauth/accessTokenManagers/AgentCoreUserATM"
+          },
+          "attributeSources": [],
+          "attributeContractFulfillment": {
+            "sub": {
+              "source": { "type": "ADAPTER" },
+              "value": "username"
+            }
+          },
+          "issuanceCriteria": { "conditionalCriteria": [] }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/oauth/clients",
+      "items": [
+        {
+          "clientId": "${PF_CLI_CLIENT_ID}",
+          "name": "AgentCore Demo CLI (public)",
+          "enabled": true,
+          "grantTypes": ["AUTHORIZATION_CODE"],
+          "clientAuth": { "type": "NONE" },
+          "restrictedResponseTypes": ["CODE"],
+          "redirectUris": ["${PF_CLI_REDIRECT_URI}"],
+          "requireProofKeyForCodeExchange": true,
+          "defaultAccessTokenManagerRef": {
+            "id": "AgentCoreUserATM",
+            "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/oauth/accessTokenManagers/AgentCoreUserATM"
+          },
+          "restrictToDefaultAccessTokenManager": true,
+          "restrictScopes": true,
+          "restrictedScopes": ["openid", "demo:read"],
+          "bypassApprovalPage": true
+        },
+        {
+          "clientId": "${PF_AGENT_CLIENT_ID}",
+          "name": "AgentCore Exchange Agent (AWS IAM identity JWT)",
+          "enabled": true,
+          "grantTypes": ["TOKEN_EXCHANGE"],
+          "clientAuth": {
+            "type": "PRIVATE_KEY_JWT",
+            "enforceReplayPrevention": false
+          },
+          "jwksSettings": {
+            "jwksUrl": "${AWS_STS_JWKS_URL}"
+          },
+          "tokenExchangeProcessorPolicyRef": {
+            "id": "AgentCoreTokenExchangePolicy",
+            "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/oauth/tokenExchange/processor/policies/AgentCoreTokenExchangePolicy"
+          },
+          "defaultAccessTokenManagerRef": {
+            "id": "AgentCoreDelegatedATM",
+            "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/oauth/accessTokenManagers/AgentCoreDelegatedATM"
+          },
+          "restrictToDefaultAccessTokenManager": true,
+          "bypassApprovalPage": true,
+          "redirectUris": [],
+          "exclusiveScopes": ["demo:read"],
+          "restrictedScopes": []
+        }
+      ]
+    }
+  ]
+}

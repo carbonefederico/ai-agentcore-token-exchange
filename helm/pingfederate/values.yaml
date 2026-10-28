@@ -1,0 +1,62 @@
+# Umbrella chart: the official ping-devops subchart (all its values live under
+# the `ping-devops:` key) plus our own templates (public ingress + cert-manager
+# TLS — see templates/ingress-pf.yaml and templates/certificates.yaml).
+# Topology as in the sibling perf project: one admin Pod, two runtime engines.
+
+# Server profile (this repo's declarative PingFederate configuration) — a
+# project pointer, not operator config. scripts/deploy.sh reads it from here.
+profile:
+  url: https://github.com/carbonefederico/ai-agentcore-token-exchange.git
+  path: server-profiles/pingfederate-agentcore
+  branch: main
+
+pf:
+  # Public hostname for the runtime engines. Must resolve externally (AWS
+  # AgentCore fetches discovery/JWKS from it) and from inside the cluster
+  # (PF's self-referential JWKS fetch hairpins through the ingress).
+  publicHost: pf.example.com
+
+ping-devops:
+  global:
+    ingress:
+      enabled: false
+    license:
+      secret:
+        devOps: devops-secret
+
+  pingfederate-admin:
+    enabled: true
+    container:
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+
+  pingfederate-engine:
+    enabled: true
+    container:
+      replicaCount: 2
+      resources:
+        requests:
+          cpu: "1"
+          memory: 2Gi
+        limits:
+          cpu: "2"
+          memory: 4Gi
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: pingfederate-engine
+                    app.kubernetes.io/instance: pf
+    workload:
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1

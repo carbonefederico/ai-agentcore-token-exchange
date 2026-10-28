@@ -1,0 +1,36 @@
+# PingFederate runtime engine ingress — the public surface for:
+#   - AgentCore Runtime's OIDC discovery + JWKS fetches (external, from AWS)
+#   - the CLI's Authorization Code + PKCE browser flows
+#   - PingFederate's self-referential JWKS fetch (OUTPUT_JWKS_URL) — the PF
+#     JVM trusts the Let's Encrypt chain by default, so no truststore hook.
+# backend-protocol HTTP: the engines serve plain HTTP on 9031; TLS terminates
+# here. cert-manager (letsencrypt-pdo ClusterIssuer, same issuer the rest of
+# the namespace uses) issues the certificate.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pf-pingfederate-engine
+  labels:
+    app.kubernetes.io/name: pingfederate-engine
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    kubernetes.io/ingress.class: "nginx-public"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/proxy-body-size: "8m"
+spec:
+  ingressClassName: "nginx-public"
+  tls:
+    - hosts:
+        - {{ .Values.pf.publicHost }}
+      secretName: {{ .Release.Name }}-pf-tls
+  rules:
+    - host: {{ .Values.pf.publicHost }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pf-pingfederate-engine
+                port:
+                  number: 9031

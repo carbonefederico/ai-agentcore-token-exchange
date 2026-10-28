@@ -1,0 +1,46 @@
+{
+  "name": "tokenexchangeagent",
+  "version": 2,
+  "managedBy": "CDK",
+  "runtimes": [
+    {
+      "name": "exchange_agent",
+      "build": "CodeZip",
+      "entrypoint": "main.py",
+      "codeLocation": "agent",
+      "runtimeVersion": "PYTHON_3_14",
+      "envVars": [
+        {
+          "name": "CREDENTIAL_PROVIDER_NAME",
+          "value": "pingfederate-obo-poc"
+        },
+        {
+          "name": "EXCHANGE_SCOPES",
+          "value": "demo:read"
+        }
+      ],
+      "protocol": "HTTP",
+      "requestHeaderAllowlist": [
+        "Authorization"
+      ],
+      "authorizerType": "CUSTOM_JWT",
+      "authorizerConfiguration": {
+        "customJwtAuthorizer": {
+          "discoveryUrl": "https://REPLACE-WITH-PF-HOSTNAME/.well-known/openid-configuration",
+          "allowedAudience": [
+            "https://agentcore.example.com/invoke"
+          ]
+        }
+      }
+    }
+  ],
+  "credentials": [],
+  "memories": [],
+  "knowledgeBases": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": [],
+  "policyEngines": [],
+  "configBundles": [],
+  "harnesses": []
+}

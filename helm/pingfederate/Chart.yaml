@@ -1,0 +1,9 @@
+apiVersion: v2
+name: pingfederate-stack
+description: PingFederate (official ping-devops chart) plus our ingress and cert-manager TLS
+version: 0.1.0
+type: application
+dependencies:
+  - name: ping-devops
+    version: 0.15.0
+    repository: https://helm.pingidentity.com/
