@@ -1,7 +1,10 @@
 # Umbrella chart: the official ping-devops subchart (all its values live under
-# the `ping-devops:` key) plus our own templates (public ingress + cert-manager
-# TLS — see templates/ingress-pf.yaml and templates/certificates.yaml).
-# Topology as in the sibling perf project: one admin Pod, two runtime engines.
+# the `ping-devops:` key) plus our own template (public ingress — see
+# templates/ingress-pf.yaml). Topology as in the sibling perf project:
+# one admin Pod, two runtime engines.
+# The public hostname is derived by convention: <release>-pingfederate-engine
+# .ping-devops.com (wildcard TLS on the public nginx controller). No
+# pf.publicHost value is needed; override it in deploy.sh only to deviate.
 
 # Server profile (this repo's declarative PingFederate configuration) — a
 # project pointer, not operator config. scripts/deploy.sh reads it from here.
@@ -9,12 +12,6 @@ profile:
   url: https://github.com/carbonefederico/ai-agentcore-token-exchange.git
   path: server-profiles/pingfederate-agentcore
   branch: main
-
-pf:
-  # Public hostname for the runtime engines. Must resolve externally (AWS
-  # AgentCore fetches discovery/JWKS from it) and from inside the cluster
-  # (PF's self-referential JWKS fetch hairpins through the ingress).
-  publicHost: pf.example.com
 
 ping-devops:
   global:
