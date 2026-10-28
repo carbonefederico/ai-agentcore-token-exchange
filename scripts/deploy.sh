@@ -9,9 +9,16 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 require_command kubectl
 require_command helm
-require_value PING_IDENTITY_DEVOPS_USER
-require_value PING_IDENTITY_DEVOPS_KEY
 require_value PF_PUBLIC_HOSTNAME
+
+# Operator credentials (Ping DevOps license) are carried by the cluster's
+# devops-secret. Create it only when missing, from env vars supplied by the
+# operator; never overwrite an existing one.
+HAVE_SECRET="$(kubectl -n "${NAMESPACE}" get secret devops-secret >/dev/null 2>&1 && echo yes || echo no)"
+if [[ "${HAVE_SECRET}" != "yes" ]]; then
+  require_value PING_IDENTITY_DEVOPS_USER
+  require_value PING_IDENTITY_DEVOPS_KEY
+fi
 
 PING_CHART_VERSION="${PING_CHART_VERSION:-0.15.0}"
 CHART_DIR="${ROOT_DIR}/helm/pingfederate"
@@ -73,11 +80,15 @@ pingfederate-admin:
 EOF
 
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
-kubectl -n "${NAMESPACE}" create secret generic devops-secret \
-  --from-literal=PING_IDENTITY_DEVOPS_USER="${PING_IDENTITY_DEVOPS_USER}" \
-  --from-literal=PING_IDENTITY_DEVOPS_KEY="${PING_IDENTITY_DEVOPS_KEY}" \
-  --from-literal=PING_IDENTITY_ACCEPT_EULA="${PING_IDENTITY_ACCEPT_EULA:-YES}" \
-  --dry-run=client -o yaml | kubectl apply -f -
+if [[ "${HAVE_SECRET}" == "yes" ]]; then
+  echo "devops-secret already exists in ${NAMESPACE}; leaving it untouched."
+else
+  kubectl -n "${NAMESPACE}" create secret generic devops-secret \
+    --from-literal=PING_IDENTITY_DEVOPS_USER="${PING_IDENTITY_DEVOPS_USER}" \
+    --from-literal=PING_IDENTITY_DEVOPS_KEY="${PING_IDENTITY_DEVOPS_KEY}" \
+    --from-literal=PING_IDENTITY_ACCEPT_EULA="${PING_IDENTITY_ACCEPT_EULA:-YES}" \
+    --dry-run=client -o yaml | kubectl apply -f -
+fi
 
 # The image's git clone reads credentials from the SERVER_PROFILE_URL itself
 # (envsubst expands the placeholders inside the pod, supplied by the chart's
