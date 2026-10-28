@@ -15,10 +15,12 @@ cd "${ROOT_DIR}"
 
 require() { [[ -n "${!1:-}" ]] || { echo "$1 is required (set in .env or environment)" >&2; exit 1; }; }
 require AWS_REGION
-require PF_PUBLIC_HOSTNAME
 
 REGION="${AWS_REGION}"
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+# Same hostname convention as scripts/deploy.sh: <release>-pingfederate-engine
+# .ping-devops.com (release name pf).
+PF_PUBLIC_HOSTNAME="${PF_PUBLIC_HOSTNAME:-pf-pingfederate-engine.ping-devops.com}"
 PF_TOKEN_ENDPOINT_AUDIENCE="${PF_TOKEN_ENDPOINT_AUDIENCE:-https://${PF_PUBLIC_HOSTNAME}/as/token.oauth2}"
 OAUTH_PROVIDER_NAME="${OAUTH_PROVIDER_NAME:-pingfederate-obo-poc}"
 ROLE_NAME="agentcore-demo-agent"
@@ -33,23 +35,10 @@ if aws iam get-outbound-web-identity-federation-info >/dev/null 2>&1; then
 else
   aws iam enable-outbound-web-identity-federation
 fi
-AWS_STS_ISSUER="$(aws iam get-outbound-web-identity-federation-info --query IssuerUrl --output text)"
+# The API names the field IssuerIdentifier (not IssuerUrl).
+AWS_STS_ISSUER="$(aws iam get-outbound-web-identity-federation-info --query IssuerIdentifier --output text)"
 AWS_STS_JWKS_URL="${AWS_STS_ISSUER}/.well-known/jwks.json"
 echo "Issuer: ${AWS_STS_ISSUER}"
-
-# Record everything PF's deploy needs from the AWS side — no manual
-# copy-paste. Idempotent: replaces existing lines, appends when absent.
-for kv in "AWS_STS_ISSUER=${AWS_STS_ISSUER}" \
-          "AWS_STS_JWKS_URL=${AWS_STS_JWKS_URL}" \
-          "PF_AGENT_CLIENT_ID=${ROLE_ARN}"; do
-  key="${kv%%=*}"
-  if grep -q "^${key}=" .env 2>/dev/null; then
-    sed -i.bak "s|^${key}=.*|${kv}|" .env && rm -f .env.bak
-  else
-    printf '%s\n' "${kv}" >> .env
-  fi
-done
-echo "Recorded AWS_STS_ISSUER, AWS_STS_JWKS_URL, PF_AGENT_CLIENT_ID in .env"
 
 echo "== 2. Agent execution role =="
 cat > "${TRUST_POLICY}" <<EOF
@@ -124,10 +113,19 @@ aws iam put-role-policy \
   --policy-document "file://${PERM_POLICY}" >/dev/null
 echo "Role: ${ROLE_ARN}"
 
-if [[ "${PF_AGENT_CLIENT_ID:-}" != "${ROLE_ARN}" ]]; then
-  echo
-  echo "NOTE: .env now records PF_AGENT_CLIENT_ID=${ROLE_ARN} (matches the role just created/verified)."
-fi
+# Record everything PF's deploy needs from the AWS side — no manual
+# copy-paste. Idempotent: replaces existing lines, appends when absent.
+for kv in "AWS_STS_ISSUER=${AWS_STS_ISSUER}" \
+          "AWS_STS_JWKS_URL=${AWS_STS_JWKS_URL}" \
+          "PF_AGENT_CLIENT_ID=${ROLE_ARN}"; do
+  key="${kv%%=*}"
+  if grep -q "^${key}=" .env 2>/dev/null; then
+    sed -i.bak "s|^${key}=.*|${kv}|" .env && rm -f .env.bak
+  else
+    printf '%s\n' "${kv}" >> .env
+  fi
+done
+echo "Recorded AWS_STS_ISSUER, AWS_STS_JWKS_URL, PF_AGENT_CLIENT_ID in .env"
 
 echo
 echo "== 3. Custom OAuth2 credential provider (secretless) =="
