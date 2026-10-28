@@ -2,10 +2,10 @@
 #   - AgentCore Runtime's OIDC discovery + JWKS fetches (external, from AWS)
 #   - the CLI's Authorization Code + PKCE browser flows
 #   - PingFederate's self-referential JWKS fetch (OUTPUT_JWKS_URL) — the PF
-#     JVM trusts the Let's Encrypt chain by default, so no truststore hook.
-# backend-protocol HTTP: the engines serve plain HTTP on 9031; TLS terminates
-# here. cert-manager (letsencrypt-pdo ClusterIssuer, same issuer the rest of
-# the namespace uses) issues the certificate.
+#     JVM trusts the controller's wildcard chain by default, no truststore.
+# Standard ping-devops convention (as id41-pf): host derived from the release
+# name; TLS served by the ingress-nginx-public controller's wildcard
+# *.ping-devops.com certificate — no secretName, no cert-manager object.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -21,10 +21,9 @@ spec:
   ingressClassName: "nginx-public"
   tls:
     - hosts:
-        - {{ .Values.pf.publicHost }}
-      secretName: {{ .Release.Name }}-pf-tls
+        - {{ .Values.pf.publicHost | default (printf "%s-pingfederate-engine.ping-devops.com" .Release.Name) }}
   rules:
-    - host: {{ .Values.pf.publicHost }}
+    - host: {{ .Values.pf.publicHost | default (printf "%s-pingfederate-engine.ping-devops.com" .Release.Name) }}
       http:
         paths:
           - path: /

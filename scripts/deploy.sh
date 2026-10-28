@@ -9,7 +9,6 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 require_command kubectl
 require_command helm
-require_value PF_PUBLIC_HOSTNAME
 
 # Operator credentials (Ping DevOps license) are carried by the cluster's
 # devops-secret. Create it only when missing, from env vars supplied by the
@@ -34,6 +33,10 @@ SERVER_PROFILE_BRANCH="${SERVER_PROFILE_BRANCH:-$(awk '/^profile:/{f=1;next} f&&
 }
 
 # --- Derived values (override in .env only to deviate) ----------------------
+# Public hostname follows the standard ping-devops chart convention, as in
+# the operator's other deployments: <release>-<product>.ping-devops.com,
+# served by the public nginx controller's wildcard *.ping-devops.com cert.
+PF_PUBLIC_HOSTNAME="${PF_PUBLIC_HOSTNAME:-${PF_RELEASE}-pingfederate-engine.ping-devops.com}"
 # Endpoints all hang off the public hostname.
 PF_TOKEN_ENDPOINT_AUDIENCE="${PF_TOKEN_ENDPOINT_AUDIENCE:-https://${PF_PUBLIC_HOSTNAME}/as/token.oauth2}"
 OUTPUT_ISSUER="${OUTPUT_ISSUER:-https://${PF_PUBLIC_HOSTNAME}}"
@@ -49,13 +52,8 @@ DEMO_RESOURCE_URI="${DEMO_RESOURCE_URI:-https://demo.example.internal/resource}"
 PING_IDENTITY_PASSWORD="${PING_IDENTITY_PASSWORD:-2FederateM0re}"
 
 # The agent client_id must equal the agent IAM role ARN (the AWS JWT's sub).
-# Derived from the logged-in AWS session; override in .env only if the role
-# name differs from aws/setup-identity.sh's default.
-if [[ -z "${PF_AGENT_CLIENT_ID:-}" ]]; then
-  require_command aws
-  ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-  PF_AGENT_CLIENT_ID="arn:aws:iam::${ACCOUNT_ID}:role/agentcore-demo-agent"
-fi
+# ./aws/setup-identity.sh creates the role and records the ARN in .env.
+require_value PF_AGENT_CLIENT_ID
 
 GENERATED_VALUES="$(mktemp -t pf-agentcore-values).yaml"
 mv "${GENERATED_VALUES%.yaml}" "${GENERATED_VALUES}"
@@ -66,8 +64,8 @@ pingfederate-admin:
   envs:
     DEMO_USERNAME: "${DEMO_USERNAME}"
     DEMO_PASSWORD: "${DEMO_PASSWORD}"
-    AWS_STS_ISSUER: "${AWS_STS_ISSUER:?AWS_STS_ISSUER required — run ./aws/setup-identity.sh first, it prints the value for .env}"
-    AWS_STS_JWKS_URL: "${AWS_STS_JWKS_URL:?AWS_STS_JWKS_URL required — run ./aws/setup-identity.sh first, it prints the value for .env}"
+    AWS_STS_ISSUER: "${AWS_STS_ISSUER:?AWS_STS_ISSUER required — run ./aws/setup-identity.sh (it writes it into .env)}"
+    AWS_STS_JWKS_URL: "${AWS_STS_JWKS_URL:?AWS_STS_JWKS_URL required — run ./aws/setup-identity.sh (it writes it into .env)}"
     PF_TOKEN_ENDPOINT_AUDIENCE: "${PF_TOKEN_ENDPOINT_AUDIENCE}"
     OUTPUT_ISSUER: "${OUTPUT_ISSUER}"
     OUTPUT_JWKS_URL: "${OUTPUT_JWKS_URL}"
@@ -112,7 +110,6 @@ helm upgrade --install "${PF_RELEASE}" "${ROOT_DIR}/helm/pingfederate" \
   --set-string pingfederate-engine.envs.SERVER_PROFILE_URL="${PROFILE_URL_WITH_CREDS}" \
   --set-string pingfederate-engine.envs.SERVER_PROFILE_PATH="${PROFILE_PATH}" \
   --set-string pingfederate-engine.envs.SERVER_PROFILE_BRANCH="${SERVER_PROFILE_BRANCH}" \
-  --set-string pf.publicHost="${PF_PUBLIC_HOSTNAME}" \
   --wait --timeout 15m
 
 echo

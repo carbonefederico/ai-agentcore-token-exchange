@@ -36,13 +36,20 @@ fi
 AWS_STS_ISSUER="$(aws iam get-outbound-web-identity-federation-info --query IssuerUrl --output text)"
 AWS_STS_JWKS_URL="${AWS_STS_ISSUER}/.well-known/jwks.json"
 echo "Issuer: ${AWS_STS_ISSUER}"
-cat <<EOF
 
-  -> copy into .env before ./scripts/deploy.sh:
-     AWS_STS_ISSUER=${AWS_STS_ISSUER}
-     AWS_STS_JWKS_URL=${AWS_STS_JWKS_URL}
-
-EOF
+# Record everything PF's deploy needs from the AWS side — no manual
+# copy-paste. Idempotent: replaces existing lines, appends when absent.
+for kv in "AWS_STS_ISSUER=${AWS_STS_ISSUER}" \
+          "AWS_STS_JWKS_URL=${AWS_STS_JWKS_URL}" \
+          "PF_AGENT_CLIENT_ID=${ROLE_ARN}"; do
+  key="${kv%%=*}"
+  if grep -q "^${key}=" .env 2>/dev/null; then
+    sed -i.bak "s|^${key}=.*|${kv}|" .env && rm -f .env.bak
+  else
+    printf '%s\n' "${kv}" >> .env
+  fi
+done
+echo "Recorded AWS_STS_ISSUER, AWS_STS_JWKS_URL, PF_AGENT_CLIENT_ID in .env"
 
 echo "== 2. Agent execution role =="
 cat > "${TRUST_POLICY}" <<EOF
@@ -119,10 +126,7 @@ echo "Role: ${ROLE_ARN}"
 
 if [[ "${PF_AGENT_CLIENT_ID:-}" != "${ROLE_ARN}" ]]; then
   echo
-  echo "NOTE: PingFederate's agent client_id is '${PF_AGENT_CLIENT_ID:-<unset>}' but the role ARN is '${ROLE_ARN}'."
-  echo "They must match (the client_id = the role ARN = the AWS JWT's sub)."
-  echo "scripts/deploy.sh derives it from this account automatically; if you set"
-  echo "PF_AGENT_CLIENT_ID in .env, update it to ${ROLE_ARN} and redeploy PingFederate."
+  echo "NOTE: .env now records PF_AGENT_CLIENT_ID=${ROLE_ARN} (matches the role just created/verified)."
 fi
 
 echo
