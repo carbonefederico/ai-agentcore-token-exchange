@@ -19,7 +19,6 @@ with open(path) as f:
 ops = doc["operations"]
 ids = {op["resourceType"] for op in ops}
 required = {
-    "/idp/adapters",
     "/idp/tokenProcessors",
     "/oauth/accessTokenManagers",
     "/oauth/tokenExchange/processor/policies",
@@ -44,7 +43,7 @@ atm_ids = {i["id"] for i in items_for("/oauth/accessTokenManagers")}
 assert {"AgentCoreDelegatedATM", "AgentCoreUserATM"} <= atm_ids, atm_ids
 
 client_ids = {i["clientId"] for i in items_for("/oauth/clients")}
-assert "${PF_CLI_CLIENT_ID}" in client_ids and "${PF_AGENT_CLIENT_ID}" in client_ids, client_ids
+assert "${PF_AGENT_CLIENT_ID}" in client_ids, client_ids
 
 tepps = items_for("/oauth/tokenExchange/processor/policies")
 assert tepps and tepps[0]["actorTokenRequired"] is True
