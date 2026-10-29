@@ -105,10 +105,11 @@ pingfederate-admin:
     DEMO_PASSWORD: "${DEMO_PASSWORD}"
     AGENTCORE_SSL_SERVER_P12_PASSWORD: "${AGENTCORE_SSL_SERVER_P12_PASSWORD}"
     AGENTCORE_SSL_SERVER_P12_FILEDATA: "${AGENTCORE_SSL_SERVER_P12_FILEDATA}"
+    PF_PUBLIC_HOSTNAME: "${PF_ENGINE_HOST}"
 EOF
 
 PING_CHART_VERSION="${PING_CHART_VERSION:-0.15.0}"
-helm upgrade --install "${PF_RELEASE}" ping-devops/ping-devops \
+helm upgrade --install "${PF_RELEASE}" pingidentity/ping-devops \
   --version "${PING_CHART_VERSION}" \
   --namespace "${NAMESPACE}" ${CREATE_NS} \
   --values "${ROOT_DIR}/helm/pingfederate/values.yaml" \
