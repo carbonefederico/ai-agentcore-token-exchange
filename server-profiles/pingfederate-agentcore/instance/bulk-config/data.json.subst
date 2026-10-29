@@ -34,6 +34,33 @@
     },
     {
       "operationType": "SAVE",
+      "resourceType": "/keyPairs/sslServer",
+      "items": [
+        {
+          "id": "agentcore-ssl-server-cert",
+          "password": "${AGENTCORE_SSL_SERVER_P12_PASSWORD}",
+          "fileData": "${AGENTCORE_SSL_SERVER_P12_FILEDATA}"
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/keyPairs/sslServer/settings",
+      "items": [
+        {
+          "activeRuntimeServerCerts": [
+            { "id": "agentcore-ssl-server-cert", "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/keyPairs/sslServer/agentcore-ssl-server-cert" }
+          ],
+          "activeAdminConsoleCerts": [
+            { "id": "agentcore-ssl-server-cert", "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/keyPairs/sslServer/agentcore-ssl-server-cert" }
+          ],
+          "adminConsoleCertRef": { "id": "agentcore-ssl-server-cert", "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/keyPairs/sslServer/agentcore-ssl-server-cert" },
+          "runtimeServerCertRef": { "id": "agentcore-ssl-server-cert", "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/keyPairs/sslServer/agentcore-ssl-server-cert" }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
       "resourceType": "/idp/tokenProcessors",
       "items": [
         {

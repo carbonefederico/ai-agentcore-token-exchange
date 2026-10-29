@@ -76,6 +76,16 @@ PING_IDENTITY_PASSWORD="${PING_IDENTITY_PASSWORD:-2FederateM0re}"
 # ./aws/setup-identity.sh creates the role and records the ARN in .env.
 require_value PF_AGENT_CLIENT_ID
 
+# The bulk import requires the SSL server keypair the instance activates
+# (bulk_config_ssl_server_config_invalid otherwise). Generate it once if
+# missing; its password + base64 filedata travel into the admin container.
+P12_FILE="${ROOT_DIR}/keys/agentcore-ssl-server.p12"
+if [[ ! -f "${P12_FILE}" ]]; then
+  "${ROOT_DIR}/scripts/generate-keys.sh"
+fi
+AGENTCORE_SSL_SERVER_P12_PASSWORD="${AGENTCORE_SSL_SERVER_P12_PASSWORD:?AGENTCORE_SSL_SERVER_P12_PASSWORD missing — generate-keys.sh writes it into .env}"
+AGENTCORE_SSL_SERVER_P12_FILEDATA="$(base64 -i "${P12_FILE}" | tr -d '\n')"
+
 GENERATED_VALUES="$(mktemp -t pf-agentcore-values).yaml"
 mv "${GENERATED_VALUES%.yaml}" "${GENERATED_VALUES}"
 trap 'rm -f "${GENERATED_VALUES}"' EXIT
@@ -112,6 +122,8 @@ ping-devops:
       PF_CLI_REDIRECT_URI: "${PF_CLI_REDIRECT_URI}"
       PF_AGENT_CLIENT_ID: "${PF_AGENT_CLIENT_ID}"
       PING_IDENTITY_PASSWORD: "${PING_IDENTITY_PASSWORD}"
+      AGENTCORE_SSL_SERVER_P12_PASSWORD: "${AGENTCORE_SSL_SERVER_P12_PASSWORD}"
+      AGENTCORE_SSL_SERVER_P12_FILEDATA: "${AGENTCORE_SSL_SERVER_P12_FILEDATA}"
       SERVER_PROFILE_URL: "${PROFILE_URL_WITH_CREDS}"
       SERVER_PROFILE_PATH: "${PROFILE_PATH}"
       SERVER_PROFILE_BRANCH: "${SERVER_PROFILE_BRANCH}"
