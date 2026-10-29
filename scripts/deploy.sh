@@ -142,6 +142,11 @@ ping-devops:
       SERVER_PROFILE_URL: "${PROFILE_URL_WITH_CREDS}"
       SERVER_PROFILE_PATH: "${PROFILE_PATH}"
       SERVER_PROFILE_BRANCH: "${SERVER_PROFILE_BRANCH}"
+      # Discovery metadata is served by the engines, so the public-hostname
+      # envs must be here too (admin-only envs left the engines advertising
+      # localhost:9031).
+      PF_ENGINE_PUBLIC_HOSTNAME: "${PF_PUBLIC_HOSTNAME}"
+      PF_ENGINE_PUBLIC_PORT_HTTPS: "443"
 EOF
 
 if [[ "${HAVE_SECRET}" == "yes" ]]; then
