@@ -80,6 +80,17 @@ GENERATED_VALUES="$(mktemp -t pf-agentcore-values).yaml"
 mv "${GENERATED_VALUES%.yaml}" "${GENERATED_VALUES}"
 trap 'rm -f "${GENERATED_VALUES}"' EXIT
 
+# The image's git clone reads credentials from the SERVER_PROFILE_URL itself
+# (envsubst expands the placeholders inside the pod, supplied by the chart's
+# optional *-git-secret). The repo is public, so this is a no-op there — but
+# keep the pattern for private profile repos.
+PROFILE_URL_WITH_CREDS="${PROFILE_URL}"
+case "${PROFILE_URL}" in
+  https://*)
+    PROFILE_URL_WITH_CREDS="https://\${SERVER_PROFILE_GIT_USER}:\${SERVER_PROFILE_GIT_PASSWORD}@${PROFILE_URL#https://}"
+    ;;
+esac
+
 # Under the umbrella chart, subchart values must be nested under the
 # dependency key (ping-devops:); the perf sibling uses the chart directly and
 # writes pingfederate-admin.envs at the top level — here that path is
@@ -120,16 +131,6 @@ else
     --from-literal=PING_IDENTITY_ACCEPT_EULA="${PING_IDENTITY_ACCEPT_EULA:-YES}" \
     --dry-run=client -o yaml | kubectl apply -f -
 fi
-
-# The image's git clone reads credentials from the SERVER_PROFILE_URL itself
-# (envsubst expands the placeholders inside the pod, supplied by the chart's
-# optional *-git-secret).
-PROFILE_URL_WITH_CREDS="${PROFILE_URL}"
-case "${PROFILE_URL}" in
-  https://*)
-    PROFILE_URL_WITH_CREDS="https://\${SERVER_PROFILE_GIT_USER}:\${SERVER_PROFILE_GIT_PASSWORD}@${PROFILE_URL#https://}"
-    ;;
-esac
 
 helm dependency update "${CHART_DIR}"
 
