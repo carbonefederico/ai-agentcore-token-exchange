@@ -9,41 +9,20 @@
 #   - the generated SSL server keypair (p12 filedata + password)
 #   - the devops-secret license when the namespace doesn't have one yet
 #
-#   ./scripts/deploy.sh -n <namespace>
+# Namespace works like any helm command: the context's default, or pass
+# --namespace. Same for other helm flags.
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 require_command kubectl
 require_command helm
-helm repo list 2>/dev/null | grep -q pingidentity || helm repo add pingidentity https://helm.pingidentity.com/ >/dev/null
 
-NAMESPACE=""
-CREATE_NS=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -n|--namespace) NAMESPACE="$2"; shift 2 ;;
-    --create-namespace) CREATE_NS="--create-namespace"; shift ;;
-    *) echo "Unknown argument: $1" >&2; exit 1 ;;
-  esac
-done
-if [[ -z "${NAMESPACE}" ]]; then
-  NAMESPACE="$(kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)"
-  NAMESPACE="${NAMESPACE:-default}"
-  echo "No -n given; using the current context's namespace: ${NAMESPACE}"
-fi
-
-# Public hostnames follow the chart's own convention (global.ingress with
-# addReleaseNameToHost: prepend): <release>-pingfederate-{admin,engine}.<domain>.
-# The profile's bulk config expands these into the issuer, JWKS URLs and
-# client config.
-PF_DOMAIN="${PF_DOMAIN:-ping-devops.com}"
-PF_ENGINE_HOST="${PF_ENGINE_HOST:-${PF_RELEASE}-pingfederate-engine.${PF_DOMAIN}}"
-PF_ADMIN_HOST="${PF_ADMIN_HOST:-${PF_RELEASE}-pingfederate-admin.${PF_DOMAIN}}"
+# Hostnames, issuer and JWKS URLs are NOT set here: the chart exports
+# PF_ENGINE_PUBLIC_HOSTNAME / PF_ADMIN_PUBLIC_HOSTNAME into the pods
+# (derived from the release name) and the profile's bulk config expands
+# them directly.
 
 # Fixed lab constants (match the bulk config and cli/config defaults).
-PF_TOKEN_ENDPOINT_AUDIENCE="${PF_TOKEN_ENDPOINT_AUDIENCE:-https://${PF_ENGINE_HOST}/as/token.oauth2}"
-OUTPUT_ISSUER="${OUTPUT_ISSUER:-https://${PF_ENGINE_HOST}}"
-OUTPUT_JWKS_URL="${OUTPUT_JWKS_URL:-https://${PF_ENGINE_HOST}/pf/JWKS}"
 DEMO_USERNAME="${DEMO_USERNAME:-demouser}"
 DEMO_PASSWORD="${DEMO_PASSWORD:-changeme}"
 PF_CLI_CLIENT_ID="${PF_CLI_CLIENT_ID:-agentcore-demo-cli}"
@@ -92,9 +71,6 @@ pingfederate-admin:
   envs:
     AWS_STS_ISSUER: "${AWS_STS_ISSUER}"
     AWS_STS_JWKS_URL: "${AWS_STS_JWKS_URL}"
-    PF_TOKEN_ENDPOINT_AUDIENCE: "${PF_TOKEN_ENDPOINT_AUDIENCE}"
-    OUTPUT_ISSUER: "${OUTPUT_ISSUER}"
-    OUTPUT_JWKS_URL: "${OUTPUT_JWKS_URL}"
     RUNTIME_API_AUDIENCE: "${RUNTIME_API_AUDIENCE}"
     DEMO_RESOURCE_URI: "${DEMO_RESOURCE_URI}"
     PF_CLI_CLIENT_ID: "${PF_CLI_CLIENT_ID}"
@@ -105,19 +81,14 @@ pingfederate-admin:
     DEMO_PASSWORD: "${DEMO_PASSWORD}"
     AGENTCORE_SSL_SERVER_P12_PASSWORD: "${AGENTCORE_SSL_SERVER_P12_PASSWORD}"
     AGENTCORE_SSL_SERVER_P12_FILEDATA: "${AGENTCORE_SSL_SERVER_P12_FILEDATA}"
-    PF_PUBLIC_HOSTNAME: "${PF_ENGINE_HOST}"
 EOF
 
 PING_CHART_VERSION="${PING_CHART_VERSION:-0.15.0}"
 helm upgrade --install "${PF_RELEASE}" pingidentity/ping-devops \
   --version "${PING_CHART_VERSION}" \
-  --namespace "${NAMESPACE}" ${CREATE_NS} \
   --values "${ROOT_DIR}/helm/pingfederate/values.yaml" \
   --values "${GENERATED_ENVS}" \
   --wait --timeout 15m
 
 echo
-kubectl -n "${NAMESPACE}" get pods,ingress -l "app.kubernetes.io/instance=${PF_RELEASE}"
-echo
-echo "Admin UI:  https://${PF_ADMIN_HOST}"
-echo "Engine:    https://${PF_ENGINE_HOST}"
+kubectl get pods,ingress -l "app.kubernetes.io/instance=${PF_RELEASE}"

@@ -77,7 +77,7 @@
       "items": [
         {
           "federationInfo": {
-            "baseUrl": "https://${PF_PUBLIC_HOSTNAME}",
+            "baseUrl": "https://${PF_ENGINE_PUBLIC_HOSTNAME}",
             "saml2EntityId": ""
           }
         }
@@ -116,11 +116,11 @@
                     "fields": [
                       {
                         "name": "Issuer",
-                        "value": "${OUTPUT_ISSUER}"
+                        "value": "https://${PF_ENGINE_PUBLIC_HOSTNAME}"
                       },
                       {
                         "name": "JWKS URL",
-                        "value": "${OUTPUT_JWKS_URL}"
+                        "value": "https://${PF_ENGINE_PUBLIC_HOSTNAME}/pf/JWKS"
                       }
                     ]
                   }
@@ -196,7 +196,7 @@
                     "fields": [
                       {
                         "name": "Audience",
-                        "value": "${PF_TOKEN_ENDPOINT_AUDIENCE}"
+                        "value": "https://${PF_ENGINE_PUBLIC_HOSTNAME}/as/token.oauth2"
                       }
                     ]
                   }
@@ -251,7 +251,7 @@
               },
               {
                 "name": "Issuer Claim Value",
-                "value": "${OUTPUT_ISSUER}"
+                "value": "https://${PF_ENGINE_PUBLIC_HOSTNAME}"
               },
               {
                 "name": "Audience Claim Value",
