@@ -20,7 +20,6 @@ require_value AWS_STS_ISSUER
 require_value AWS_STS_JWKS_URL
 
 helm upgrade --install "${PF_RELEASE}" pingidentity/ping-devops \
-  --version "${PING_CHART_VERSION:-0.15.0}" \
   --values "${ROOT_DIR}/helm/pingfederate/values.yaml" \
   --set-string "pingfederate-admin.envs.AWS_STS_ISSUER=${AWS_STS_ISSUER}" \
   --set-string "pingfederate-admin.envs.AWS_STS_JWKS_URL=${AWS_STS_JWKS_URL}" \
