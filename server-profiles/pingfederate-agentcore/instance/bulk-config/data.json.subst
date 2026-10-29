@@ -325,7 +325,11 @@
         {
           "id": "AgentCoreAuthCodeMapping",
           "context": {
-            "type": "AUTHENTICATION_POLICY_CONTRACT"
+            "type": "IDP_ADAPTER",
+            "contextRef": {
+              "id": "DemoPassthroughAdapter",
+              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/adapters/DemoPassthroughAdapter"
+            }
           },
           "accessTokenManagerRef": {
             "id": "AgentCoreUserATM",
@@ -334,7 +338,7 @@
           "attributeSources": [],
           "attributeContractFulfillment": {
             "sub": {
-              "source": { "type": "AUTHENTICATION_POLICY_CONTRACT" },
+              "source": { "type": "ADAPTER" },
               "value": "username"
             }
           },
