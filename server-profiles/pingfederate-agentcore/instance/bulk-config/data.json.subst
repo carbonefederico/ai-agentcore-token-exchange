@@ -37,21 +37,18 @@
       "resourceType": "/idp/adapters",
       "items": [
         {
-          "id": "DemoFormAdapter",
-          "name": "Demo Form Adapter",
+          "id": "DemoPassthroughAdapter",
+          "name": "Demo Passthrough Adapter",
           "pluginDescriptorRef": {
-            "id": "com.pingidentity.adapters.simple.idp.SimpleIdpAdapter"
+            "id": "com.pingidentity.adapters.passthrough.idp.PassthroughIdpAdapter"
           },
           "configuration": {
-            "fields": [
-              { "name": "username", "value": "${DEMO_USERNAME}" },
-              { "name": "password", "value": "${DEMO_PASSWORD}" }
-            ],
+            "fields": [],
             "tables": []
           },
           "attributeContract": {
             "coreAttributes": [
-              { "name": "subject" }
+              { "name": "username", "pseudonym": true }
             ],
             "extendedAttributes": []
           }
@@ -63,8 +60,8 @@
       "resourceType": "/idp/tokenProcessors",
       "items": [
         {
-          "id": "AgentCorePingFederateUserProcessor",
-          "name": "AgentCore PingFederate User Token Processor",
+          "id": "PfUserTokenProcessor",
+          "name": "PF User Token Processor",
           "pluginDescriptorRef": {
             "id": "com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor"
           },
@@ -104,8 +101,8 @@
           }
         },
         {
-          "id": "AgentCoreAwsStsTokenProcessor",
-          "name": "AgentCore AWS STS Token Processor",
+          "id": "AwsStsTokenProcessor",
+          "name": "AWS STS Token Processor",
           "pluginDescriptorRef": {
             "id": "com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor"
           },
@@ -236,13 +233,13 @@
               "attributeSources": [],
               "subjectTokenType": "urn:ietf:params:oauth:token-type:jwt",
               "subjectTokenProcessor": {
-                "id": "AgentCorePingFederateUserProcessor",
-                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/AgentCorePingFederateUserProcessor"
+                "id": "PfUserTokenProcessor",
+                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfUserTokenProcessor"
               },
               "actorTokenType": "urn:ietf:params:oauth:token-type:jwt",
               "actorTokenProcessor": {
-                "id": "AgentCoreAwsStsTokenProcessor",
-                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/AgentCoreAwsStsTokenProcessor"
+                "id": "AwsStsTokenProcessor",
+                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/AwsStsTokenProcessor"
               },
               "attributeContractFulfillment": {
                 "subject": {
@@ -337,7 +334,7 @@
           "attributeSources": [],
           "attributeContractFulfillment": {
             "sub": {
-              "source": { "type": "ADAPTER" },
+              "source": { "type": "AUTHENTICATION_POLICY_CONTRACT" },
               "value": "username"
             }
           },
@@ -355,7 +352,6 @@
           "enabled": true,
           "grantTypes": ["AUTHORIZATION_CODE"],
           "clientAuth": { "type": "NONE" },
-          "restrictedResponseTypes": ["CODE"],
           "redirectUris": ["${PF_CLI_REDIRECT_URI}"],
           "requireProofKeyForCodeExchange": true,
           "defaultAccessTokenManagerRef": {
@@ -390,8 +386,8 @@
           "restrictToDefaultAccessTokenManager": true,
           "bypassApprovalPage": true,
           "redirectUris": [],
-          "exclusiveScopes": ["demo:read"],
-          "restrictedScopes": []
+          "exclusiveScopes": [],
+          "restrictedScopes": ["demo:read"]
         }
       ]
     }
