@@ -48,7 +48,10 @@
           },
           "attributeContract": {
             "coreAttributes": [
-              { "name": "username", "pseudonym": true }
+              {
+                "name": "username",
+                "pseudonym": true
+              }
             ],
             "extendedAttributes": []
           }
@@ -67,9 +70,18 @@
           },
           "configuration": {
             "fields": [
-              { "name": "Require Audience", "value": "true" },
-              { "name": "Require Expiration Time", "value": "true" },
-              { "name": "Allowed Clock Skew", "value": "10" }
+              {
+                "name": "Require Audience",
+                "value": "true"
+              },
+              {
+                "name": "Require Expiration Time",
+                "value": "true"
+              },
+              {
+                "name": "Allowed Clock Skew",
+                "value": "10"
+              }
             ],
             "tables": [
               {
@@ -77,8 +89,14 @@
                 "rows": [
                   {
                     "fields": [
-                      { "name": "Issuer", "value": "${OUTPUT_ISSUER}" },
-                      { "name": "JWKS URL", "value": "${OUTPUT_JWKS_URL}" }
+                      {
+                        "name": "Issuer",
+                        "value": "${OUTPUT_ISSUER}"
+                      },
+                      {
+                        "name": "JWKS URL",
+                        "value": "${OUTPUT_JWKS_URL}"
+                      }
                     ]
                   }
                 ]
@@ -88,7 +106,10 @@
                 "rows": [
                   {
                     "fields": [
-                      { "name": "Audience", "value": "${RUNTIME_API_AUDIENCE}" }
+                      {
+                        "name": "Audience",
+                        "value": "${RUNTIME_API_AUDIENCE}"
+                      }
                     ]
                   }
                 ]
@@ -96,7 +117,11 @@
             ]
           },
           "attributeContract": {
-            "coreAttributes": [{ "name": "sub" }],
+            "coreAttributes": [
+              {
+                "name": "sub"
+              }
+            ],
             "extendedAttributes": []
           }
         },
@@ -108,9 +133,18 @@
           },
           "configuration": {
             "fields": [
-              { "name": "Require Audience", "value": "true" },
-              { "name": "Require Expiration Time", "value": "true" },
-              { "name": "Allowed Clock Skew", "value": "10" }
+              {
+                "name": "Require Audience",
+                "value": "true"
+              },
+              {
+                "name": "Require Expiration Time",
+                "value": "true"
+              },
+              {
+                "name": "Allowed Clock Skew",
+                "value": "10"
+              }
             ],
             "tables": [
               {
@@ -118,8 +152,14 @@
                 "rows": [
                   {
                     "fields": [
-                      { "name": "Issuer", "value": "${AWS_STS_ISSUER}" },
-                      { "name": "JWKS URL", "value": "${AWS_STS_JWKS_URL}" }
+                      {
+                        "name": "Issuer",
+                        "value": "${AWS_STS_ISSUER}"
+                      },
+                      {
+                        "name": "JWKS URL",
+                        "value": "${AWS_STS_JWKS_URL}"
+                      }
                     ]
                   }
                 ]
@@ -129,7 +169,10 @@
                 "rows": [
                   {
                     "fields": [
-                      { "name": "Audience", "value": "${PF_TOKEN_ENDPOINT_AUDIENCE}" }
+                      {
+                        "name": "Audience",
+                        "value": "${PF_TOKEN_ENDPOINT_AUDIENCE}"
+                      }
                     ]
                   }
                 ]
@@ -137,7 +180,11 @@
             ]
           },
           "attributeContract": {
-            "coreAttributes": [{ "name": "sub" }],
+            "coreAttributes": [
+              {
+                "name": "sub"
+              }
+            ],
             "extendedAttributes": []
           }
         }
@@ -155,32 +202,73 @@
           },
           "configuration": {
             "tables": [
-              { "name": "Symmetric Keys", "rows": [] },
-              { "name": "Certificates", "rows": [] }
+              {
+                "name": "Symmetric Keys",
+                "rows": []
+              },
+              {
+                "name": "Certificates",
+                "rows": []
+              }
             ],
             "fields": [
-              { "name": "Token Lifetime", "value": "15" },
-              { "name": "Use Centralized Signing Key", "value": "true" },
-              { "name": "JWS Algorithm", "value": "RS256" },
-              { "name": "Issuer Claim Value", "value": "${OUTPUT_ISSUER}" },
-              { "name": "Audience Claim Value", "value": "" },
-              { "name": "Type Header Value", "value": "at+jwt" },
-              { "name": "Include Key ID Header Parameter", "value": "true" },
-              { "name": "Include Issued At Claim", "value": "true" }
+              {
+                "name": "Token Lifetime",
+                "value": "15"
+              },
+              {
+                "name": "Use Centralized Signing Key",
+                "value": "true"
+              },
+              {
+                "name": "JWS Algorithm",
+                "value": "RS256"
+              },
+              {
+                "name": "Issuer Claim Value",
+                "value": "${OUTPUT_ISSUER}"
+              },
+              {
+                "name": "Audience Claim Value",
+                "value": ""
+              },
+              {
+                "name": "Type Header Value",
+                "value": "at+jwt"
+              },
+              {
+                "name": "Include Key ID Header Parameter",
+                "value": "true"
+              },
+              {
+                "name": "Include Issued At Claim",
+                "value": "true"
+              }
             ]
           },
           "attributeContract": {
             "coreAttributes": [],
             "extendedAttributes": [
-              { "name": "sub" },
-              { "name": "act" },
-              { "name": "aud" }
+              {
+                "name": "sub"
+              },
+              {
+                "name": "act"
+              },
+              {
+                "name": "aud"
+              }
             ]
           },
           "selectionSettings": {
-            "resourceUris": ["${DEMO_RESOURCE_URI}"]
+            "resourceUris": [
+              "${DEMO_RESOURCE_URI}"
+            ]
           },
-          "accessControlSettings": { "restrictClients": false, "allowedClients": [] }
+          "accessControlSettings": {
+            "restrictClients": false,
+            "allowedClients": []
+          }
         },
         {
           "id": "AgentCoreUserATM",
@@ -190,27 +278,62 @@
           },
           "configuration": {
             "tables": [
-              { "name": "Symmetric Keys", "rows": [] },
-              { "name": "Certificates", "rows": [] }
+              {
+                "name": "Symmetric Keys",
+                "rows": []
+              },
+              {
+                "name": "Certificates",
+                "rows": []
+              }
             ],
             "fields": [
-              { "name": "Token Lifetime", "value": "15" },
-              { "name": "Use Centralized Signing Key", "value": "true" },
-              { "name": "JWS Algorithm", "value": "RS256" },
-              { "name": "Issuer Claim Value", "value": "${OUTPUT_ISSUER}" },
-              { "name": "Audience Claim Value", "value": "${RUNTIME_API_AUDIENCE}" },
-              { "name": "Type Header Value", "value": "at+jwt" },
-              { "name": "Include Key ID Header Parameter", "value": "true" },
-              { "name": "Include Issued At Claim", "value": "true" }
+              {
+                "name": "Token Lifetime",
+                "value": "15"
+              },
+              {
+                "name": "Use Centralized Signing Key",
+                "value": "true"
+              },
+              {
+                "name": "JWS Algorithm",
+                "value": "RS256"
+              },
+              {
+                "name": "Issuer Claim Value",
+                "value": "${OUTPUT_ISSUER}"
+              },
+              {
+                "name": "Audience Claim Value",
+                "value": "${RUNTIME_API_AUDIENCE}"
+              },
+              {
+                "name": "Type Header Value",
+                "value": "at+jwt"
+              },
+              {
+                "name": "Include Key ID Header Parameter",
+                "value": "true"
+              },
+              {
+                "name": "Include Issued At Claim",
+                "value": "true"
+              }
             ]
           },
           "attributeContract": {
             "coreAttributes": [],
             "extendedAttributes": [
-              { "name": "sub" }
+              {
+                "name": "sub"
+              }
             ]
           },
-          "accessControlSettings": { "restrictClients": false, "allowedClients": [] }
+          "accessControlSettings": {
+            "restrictClients": false,
+            "allowedClients": []
+          }
         }
       ]
     },
@@ -223,9 +346,15 @@
           "name": "AgentCore Token Exchange Policy",
           "actorTokenRequired": true,
           "attributeContract": {
-            "coreAttributes": [{ "name": "subject" }],
+            "coreAttributes": [
+              {
+                "name": "subject"
+              }
+            ],
             "extendedAttributes": [
-              { "name": "subject_act" }
+              {
+                "name": "subject_act"
+              }
             ]
           },
           "processorMappings": [
@@ -243,15 +372,21 @@
               },
               "attributeContractFulfillment": {
                 "subject": {
-                  "source": { "type": "SUBJECT_TOKEN" },
+                  "source": {
+                    "type": "SUBJECT_TOKEN"
+                  },
                   "value": "sub"
                 },
                 "subject_act": {
-                  "source": { "type": "ACTOR_TOKEN" },
+                  "source": {
+                    "type": "ACTOR_TOKEN"
+                  },
                   "value": "sub"
                 }
               },
-              "issuanceCriteria": { "conditionalCriteria": [] }
+              "issuanceCriteria": {
+                "conditionalCriteria": []
+              }
             }
           ]
         }
@@ -295,61 +430,11 @@
         {
           "id": "DemoApc",
           "name": "Demo Authentication Policy Contract",
-          "coreAttributes": [{ "name": "subject" }]
-        }
-      ]
-    },
-    {
-      "operationType": "SAVE",
-      "resourceType": "/authenticationPolicies",
-      "items": [
-        {
-          "id": "DemoAuthnPolicy",
-          "name": "Demo Authentication Policy",
-          "rootNode": {
-            "type": "AUTHN_SOURCE",
-            "action": {
-              "type": "AUTHN_SOURCE",
-              "authenticationSource": {
-                "type": "IDP_ADAPTER",
-                "sourceRef": {
-                  "id": "DemoPassthroughAdapter",
-                  "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/adapters/DemoPassthroughAdapter"
-                }
-              },
-              "attributeMapping": {
-                "attributeContractFulfillment": {
-                  "subject": {
-                    "source": { "type": "ADAPTER" },
-                    "value": "username"
-                  }
-                },
-                "issuanceCriteria": { "conditionalCriteria": [] }
-              }
-            },
-            "children": [
-              {
-                "type": "APC_MAPPING",
-                "context": "Success",
-                "action": {
-                  "type": "APC_MAPPING",
-                  "authenticationPolicyContractRef": {
-                    "id": "DemoApc",
-                    "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/authenticationPolicyContracts/DemoApc"
-                  },
-                  "attributeMapping": {
-                    "attributeContractFulfillment": {
-                      "subject": {
-                        "source": { "type": "ADAPTER" },
-                        "value": "username"
-                      }
-                    },
-                    "issuanceCriteria": { "conditionalCriteria": [] }
-                  }
-                }
-              }
-            ]
-          }
+          "coreAttributes": [
+            {
+              "name": "subject"
+            }
+          ]
         }
       ]
     },
@@ -373,19 +458,27 @@
           "attributeSources": [],
           "attributeContractFulfillment": {
             "sub": {
-              "source": { "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY" },
+              "source": {
+                "type": "TOKEN_EXCHANGE_PROCESSOR_POLICY"
+              },
               "value": "subject"
             },
             "aud": {
-              "source": { "type": "EXPRESSION" },
+              "source": {
+                "type": "EXPRESSION"
+              },
               "value": "#this.get(\"context.OAuthResources\")"
             },
             "act": {
-              "source": { "type": "EXPRESSION" },
+              "source": {
+                "type": "EXPRESSION"
+              },
               "value": "#curr = #this.get(\"tepp.subject_act\") != null ? #this.get(\"tepp.subject_act\").getObjectValue().toString() : \"\", #out = new java.util.LinkedHashMap(), #out.put(\"sub\", #curr), #out"
             }
           },
-          "issuanceCriteria": { "conditionalCriteria": [] }
+          "issuanceCriteria": {
+            "conditionalCriteria": []
+          }
         },
         {
           "id": "AgentCoreAuthCodeMapping",
@@ -403,11 +496,15 @@
           "attributeSources": [],
           "attributeContractFulfillment": {
             "sub": {
-              "source": { "type": "AUTHENTICATION_POLICY_CONTRACT" },
+              "source": {
+                "type": "AUTHENTICATION_POLICY_CONTRACT"
+              },
               "value": "subject"
             }
           },
-          "issuanceCriteria": { "conditionalCriteria": [] }
+          "issuanceCriteria": {
+            "conditionalCriteria": []
+          }
         }
       ]
     },
@@ -419,9 +516,15 @@
           "clientId": "${PF_CLI_CLIENT_ID}",
           "name": "AgentCore Demo CLI (public)",
           "enabled": true,
-          "grantTypes": ["AUTHORIZATION_CODE"],
-          "clientAuth": { "type": "NONE" },
-          "redirectUris": ["${PF_CLI_REDIRECT_URI}"],
+          "grantTypes": [
+            "AUTHORIZATION_CODE"
+          ],
+          "clientAuth": {
+            "type": "NONE"
+          },
+          "redirectUris": [
+            "${PF_CLI_REDIRECT_URI}"
+          ],
           "requireProofKeyForCodeExchange": true,
           "defaultAccessTokenManagerRef": {
             "id": "AgentCoreUserATM",
@@ -429,14 +532,19 @@
           },
           "restrictToDefaultAccessTokenManager": true,
           "restrictScopes": true,
-          "restrictedScopes": ["openid", "demo:read"],
+          "restrictedScopes": [
+            "openid",
+            "demo:read"
+          ],
           "bypassApprovalPage": true
         },
         {
           "clientId": "${PF_AGENT_CLIENT_ID}",
           "name": "AgentCore Exchange Agent (AWS IAM identity JWT)",
           "enabled": true,
-          "grantTypes": ["TOKEN_EXCHANGE"],
+          "grantTypes": [
+            "TOKEN_EXCHANGE"
+          ],
           "clientAuth": {
             "type": "PRIVATE_KEY_JWT",
             "enforceReplayPrevention": false
@@ -456,7 +564,9 @@
           "bypassApprovalPage": true,
           "redirectUris": [],
           "exclusiveScopes": [],
-          "restrictedScopes": ["demo:read"]
+          "restrictedScopes": [
+            "demo:read"
+          ]
         }
       ]
     }
