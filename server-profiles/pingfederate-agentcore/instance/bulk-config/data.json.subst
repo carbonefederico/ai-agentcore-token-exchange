@@ -328,7 +328,7 @@
         {
           "id": "AgentCoreAuthCodeMapping",
           "context": {
-            "type": "AuthorizationCode"
+            "type": "AUTHENTICATION_POLICY_CONTRACT"
           },
           "accessTokenManagerRef": {
             "id": "AgentCoreUserATM",
