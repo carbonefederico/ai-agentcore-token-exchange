@@ -295,7 +295,7 @@
         {
           "id": "DemoApc",
           "name": "Demo Authentication Policy Contract",
-          "attributeNames": ["subject"]
+          "coreAttributes": [{ "name": "subject" }]
         }
       ]
     },
