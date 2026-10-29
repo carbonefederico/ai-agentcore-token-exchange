@@ -37,7 +37,7 @@
       "resourceType": "/idp/adapters",
       "items": [
         {
-          "instanceId": "DemoFormAdapter",
+          "id": "DemoFormAdapter",
           "name": "Demo Form Adapter",
           "pluginDescriptorRef": {
             "id": "com.pingidentity.adapters.simple.idp.SimpleIdpAdapter"
@@ -46,12 +46,14 @@
             "fields": [
               { "name": "username", "value": "${DEMO_USERNAME}" },
               { "name": "password", "value": "${DEMO_PASSWORD}" }
-            ]
+            ],
+            "tables": []
           },
           "attributeContract": {
             "coreAttributes": [
-              { "name": "username" }
-            ]
+              { "name": "subject" }
+            ],
+            "extendedAttributes": []
           }
         }
       ]
