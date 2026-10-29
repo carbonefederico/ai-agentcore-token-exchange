@@ -781,6 +781,29 @@
           "restrictedScopes": [
             "demo:read"
           ]
+        },
+        {
+          "clientId": "agentcore-demo-cli",
+          "name": "AgentCore Demo CLI",
+          "enabled": true,
+          "grantTypes": [
+            "AUTHORIZATION_CODE",
+            "REFRESH_TOKEN"
+          ],
+          "clientAuth": {
+            "type": "SECRET",
+            "secret": "cli-demo-secret"
+          },
+          "defaultAccessTokenManagerRef": {
+            "id": "AgentCoreDelegatedATM"
+          },
+          "restrictToDefaultAccessTokenManager": true,
+          "bypassApprovalPage": true,
+          "redirectUris": [
+            "http://127.0.0.1:8400/callback"
+          ],
+          "exclusiveScopes": [],
+          "restrictedScopes": []
         }
       ]
     }
