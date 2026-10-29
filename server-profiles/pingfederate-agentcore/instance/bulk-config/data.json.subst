@@ -9,7 +9,7 @@
       "items": [
         {
           "username": "Administrator",
-          "password": "${PING_IDENTITY_PASSWORD}",
+          "password": "2FederateM0re",
           "roles": [
             "EXPRESSION_ADMINISTRATOR",
             "USER_ADMINISTRATOR",
