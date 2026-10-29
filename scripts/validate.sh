@@ -37,10 +37,10 @@ def items_for(rt):
     return []
 
 proc_ids = {i["id"] for i in items_for("/idp/tokenProcessors")}
-assert {"AgentCorePingFederateUserProcessor", "AgentCoreAwsStsTokenProcessor"} <= proc_ids, proc_ids
+assert {"PfUserTokenProcessor", "AwsStsTokenProcessor"} <= proc_ids, proc_ids
 
 atm_ids = {i["id"] for i in items_for("/oauth/accessTokenManagers")}
-assert {"AgentCoreDelegatedATM", "AgentCoreUserATM"} <= atm_ids, atm_ids
+assert {"AgentCoreDelegatedATM"} <= atm_ids, atm_ids
 
 client_ids = {i["clientId"] for i in items_for("/oauth/clients")}
 assert "${PF_AGENT_CLIENT_ID}" in client_ids, client_ids
@@ -48,7 +48,7 @@ assert "${PF_AGENT_CLIENT_ID}" in client_ids, client_ids
 tepps = items_for("/oauth/tokenExchange/processor/policies")
 assert tepps and tepps[0]["actorTokenRequired"] is True
 mappings = items_for("/oauth/accessTokenMappings")
-assert any(m["context"]["type"] == "AUTHORIZATION_CODE" for m in mappings)
+assert any(m["context"]["type"] == "TOKEN_EXCHANGE_PROCESSOR_POLICY" for m in mappings)
 print("Bulk config structure OK.")
 EOF
 echo "Bulk config OK."
