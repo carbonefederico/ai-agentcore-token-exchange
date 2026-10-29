@@ -133,7 +133,7 @@
                     "fields": [
                       {
                         "name": "Audience",
-                        "value": "${RUNTIME_API_AUDIENCE}"
+                        "value": "https://agentcore.demo.internal/invoke"
                       }
                     ]
                   }
@@ -287,7 +287,7 @@
           },
           "selectionSettings": {
             "resourceUris": [
-              "${DEMO_RESOURCE_URI}"
+              "https://demo.example.internal/resource"
             ]
           },
           "accessControlSettings": {
