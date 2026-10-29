@@ -304,17 +304,20 @@
       "resourceType": "/authenticationPolicies",
       "items": [
         {
-          "id": "default",
-          "name": "Default Authentication Policy",
-          "policy": {
-            "rootNode": {
-              "type": "AUTHENTICATION",
-              "adapterRef": {
-                "id": "DemoPassthroughAdapter",
-                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/adapters/DemoPassthroughAdapter"
+          "id": "DemoAuthnPolicy",
+          "name": "Demo Authentication Policy",
+          "rootNode": {
+            "type": "AUTHN_SOURCE",
+            "action": {
+              "type": "AUTHN_SOURCE",
+              "authenticationSource": {
+                "type": "IDP_ADAPTER",
+                "sourceRef": {
+                  "id": "DemoPassthroughAdapter",
+                  "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/adapters/DemoPassthroughAdapter"
+                }
               },
               "attributeMapping": {
-                "attributeNames": ["subject"],
                 "attributeContractFulfillment": {
                   "subject": {
                     "source": { "type": "ADAPTER" },
@@ -322,15 +325,30 @@
                   }
                 },
                 "issuanceCriteria": { "conditionalCriteria": [] }
-              },
-              "action": {
-                "type": "AUTHN_POLICY_CONTRACT",
-                "contractRef": {
-                  "id": "DemoApc",
-                  "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/authenticationPolicyContracts/DemoApc"
+              }
+            },
+            "children": [
+              {
+                "type": "APC_MAPPING",
+                "context": "Success",
+                "action": {
+                  "type": "APC_MAPPING",
+                  "authenticationPolicyContractRef": {
+                    "id": "DemoApc",
+                    "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/authenticationPolicyContracts/DemoApc"
+                  },
+                  "attributeMapping": {
+                    "attributeContractFulfillment": {
+                      "subject": {
+                        "source": { "type": "ADAPTER" },
+                        "value": "username"
+                      }
+                    },
+                    "issuanceCriteria": { "conditionalCriteria": [] }
+                  }
                 }
               }
-            }
+            ]
           }
         }
       ]
