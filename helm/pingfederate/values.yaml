@@ -1,7 +1,6 @@
 # Umbrella chart: the official ping-devops subchart (all its values live under
 # the `ping-devops:` key) plus our own template (public ingress — see
-# templates/ingress-pf.yaml). Topology as in the sibling perf project:
-# one admin Pod, two runtime engines.
+# templates/ingress-pf.yaml). Topology: one admin Pod, one runtime engine.
 # The public hostname is derived by convention: <release>-pingfederate-engine
 # .ping-devops.com (wildcard TLS on the public nginx controller). No
 # pf.publicHost value is needed; override it in deploy.sh only to deviate.
@@ -35,7 +34,7 @@ ping-devops:
   pingfederate-engine:
     enabled: true
     container:
-      replicaCount: 2
+      replicaCount: 1
       resources:
         requests:
           cpu: "1"
