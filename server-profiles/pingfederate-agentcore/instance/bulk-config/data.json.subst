@@ -290,6 +290,53 @@
     },
     {
       "operationType": "SAVE",
+      "resourceType": "/authenticationPolicyContracts",
+      "items": [
+        {
+          "id": "DemoApc",
+          "name": "Demo Authentication Policy Contract",
+          "attributeNames": ["subject"]
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/authenticationPolicies",
+      "items": [
+        {
+          "id": "default",
+          "name": "Default Authentication Policy",
+          "policy": {
+            "rootNode": {
+              "type": "AUTHENTICATION",
+              "adapterRef": {
+                "id": "DemoPassthroughAdapter",
+                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/adapters/DemoPassthroughAdapter"
+              },
+              "attributeMapping": {
+                "attributeNames": ["subject"],
+                "attributeContractFulfillment": {
+                  "subject": {
+                    "source": { "type": "ADAPTER" },
+                    "value": "username"
+                  }
+                },
+                "issuanceCriteria": { "conditionalCriteria": [] }
+              },
+              "action": {
+                "type": "AUTHN_POLICY_CONTRACT",
+                "contractRef": {
+                  "id": "DemoApc",
+                  "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/authenticationPolicyContracts/DemoApc"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
       "resourceType": "/oauth/accessTokenMappings",
       "items": [
         {
@@ -325,10 +372,10 @@
         {
           "id": "AgentCoreAuthCodeMapping",
           "context": {
-            "type": "IDP_ADAPTER",
+            "type": "AUTHENTICATION_POLICY_CONTRACT",
             "contextRef": {
-              "id": "DemoPassthroughAdapter",
-              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/adapters/DemoPassthroughAdapter"
+              "id": "DemoApc",
+              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/authenticationPolicyContracts/DemoApc"
             }
           },
           "accessTokenManagerRef": {
@@ -338,8 +385,8 @@
           "attributeSources": [],
           "attributeContractFulfillment": {
             "sub": {
-              "source": { "type": "ADAPTER" },
-              "value": "username"
+              "source": { "type": "AUTHENTICATION_POLICY_CONTRACT" },
+              "value": "subject"
             }
           },
           "issuanceCriteria": { "conditionalCriteria": [] }
