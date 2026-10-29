@@ -85,6 +85,327 @@
     },
     {
       "operationType": "SAVE",
+      "resourceType": "/passwordCredentialValidators",
+      "items": [
+        {
+          "id": "AgentCoreDemoUsersPCV",
+          "name": "AgentCore Demo Users PCV",
+          "pluginDescriptorRef": {
+            "id": "org.sourceid.saml20.domain.SimpleUsernamePasswordCredentialValidator"
+          },
+          "configuration": {
+            "tables": [
+              {
+                "name": "Users",
+                "rows": [
+                  {
+                    "fields": [
+                      {
+                        "name": "Username",
+                        "value": "demouser"
+                      },
+                      {
+                        "name": "Password",
+                        "value": "changeme"
+                      },
+                      {
+                        "name": "Confirm Password",
+                        "value": "changeme"
+                      },
+                      {
+                        "name": "Relax Password Requirements",
+                        "value": "true"
+                      }
+                    ],
+                    "defaultRow": false
+                  },
+                  {
+                    "fields": [
+                      {
+                        "name": "Username",
+                        "value": "fc"
+                      },
+                      {
+                        "name": "Password",
+                        "value": "changeme"
+                      },
+                      {
+                        "name": "Confirm Password",
+                        "value": "changeme"
+                      },
+                      {
+                        "name": "Relax Password Requirements",
+                        "value": "true"
+                      }
+                    ],
+                    "defaultRow": false
+                  }
+                ]
+              }
+            ],
+            "fields": []
+          }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/idp/adapters",
+      "items": [
+        {
+          "id": "AgentCoreLoginAdapter",
+          "name": "AgentCore Login Adapter",
+          "pluginDescriptorRef": {
+            "id": "com.pingidentity.adapters.htmlform.idp.HtmlFormIdpAuthnAdapter",
+            "location": "https://id41-pf-pingfederate-admin.ping-devops.com/pf-admin-api/v1/idp/adapters/descriptors/com.pingidentity.adapters.htmlform.idp.HtmlFormIdpAuthnAdapter"
+          },
+          "configuration": {
+            "tables": [
+              {
+                "name": "Credential Validators",
+                "rows": [
+                  {
+                    "fields": [
+                      {
+                        "name": "Password Credential Validator Instance",
+                        "value": "AgentCoreDemoUsersPCV"
+                      }
+                    ],
+                    "defaultRow": false
+                  }
+                ]
+              }
+            ],
+            "fields": [
+              {
+                "name": "Challenge Retries",
+                "value": "3"
+              },
+              {
+                "name": "Session State",
+                "value": "None"
+              },
+              {
+                "name": "Session Timeout",
+                "value": "60"
+              },
+              {
+                "name": "Session Max Timeout",
+                "value": "480"
+              },
+              {
+                "name": "Allow Password Changes",
+                "value": "false"
+              },
+              {
+                "name": "Password Management System",
+                "value": ""
+              },
+              {
+                "name": "Enable 'Remember My Username'",
+                "value": "false"
+              },
+              {
+                "name": "Enable 'This is My Device'",
+                "value": "false"
+              },
+              {
+                "name": "Change Password Policy Contract",
+                "value": ""
+              },
+              {
+                "name": "Change Password Email Notification",
+                "value": "false"
+              },
+              {
+                "name": "Show Password Expiring Warning",
+                "value": "false"
+              },
+              {
+                "name": "Password Reset Type",
+                "value": "NONE"
+              },
+              {
+                "name": "Password Reset Policy Contract",
+                "value": ""
+              },
+              {
+                "name": "Revoke Sessions After Password Change Or Reset",
+                "value": "false"
+              },
+              {
+                "name": "Account Unlock",
+                "value": "false"
+              },
+              {
+                "name": "Local Identity Profile",
+                "value": ""
+              },
+              {
+                "name": "Notification Publisher",
+                "value": ""
+              }
+            ]
+          },
+          "lastModified": "2026-10-05T13:02:30.396Z",
+          "attributeContract": {
+            "coreAttributes": [
+              {
+                "name": "policy.action",
+                "masked": false,
+                "pseudonym": false
+              },
+              {
+                "name": "username",
+                "masked": false,
+                "pseudonym": true
+              }
+            ],
+            "extendedAttributes": [],
+            "maskOgnlValues": false
+          },
+          "attributeMapping": {
+            "attributeSources": [],
+            "attributeContractFulfillment": {
+              "policy.action": {
+                "source": {
+                  "type": "ADAPTER"
+                },
+                "value": "policy.action"
+              },
+              "username": {
+                "source": {
+                  "type": "ADAPTER"
+                },
+                "value": "username"
+              }
+            },
+            "issuanceCriteria": {
+              "conditionalCriteria": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/authenticationPolicyContracts",
+      "items": [
+        {
+          "id": "AgentCoreApc",
+          "name": "AgentCore APC",
+          "coreAttributes": [
+            {
+              "name": "subject"
+            }
+          ],
+          "extendedAttributes": []
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/oauth/authenticationPolicyContractMappings",
+      "items": [
+        {
+          "attributeSources": [],
+          "attributeContractFulfillment": {
+            "USER_NAME": {
+              "source": {
+                "type": "AUTHENTICATION_POLICY_CONTRACT"
+              },
+              "value": "subject"
+            },
+            "USER_KEY": {
+              "source": {
+                "type": "AUTHENTICATION_POLICY_CONTRACT"
+              },
+              "value": "subject"
+            }
+          },
+          "issuanceCriteria": {
+            "conditionalCriteria": []
+          },
+          "authenticationPolicyContractRef": {
+            "id": "AgentCoreApc"
+          }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/authenticationPolicies/default",
+      "items": [
+        {
+          "failIfNoSelection": false,
+          "authnSelectionTrees": [
+            {
+              "rootNode": {
+                "action": {
+                  "type": "AUTHN_SOURCE",
+                  "authenticationSource": {
+                    "type": "IDP_ADAPTER",
+                    "sourceRef": {
+                      "id": "AgentCoreLoginAdapter"
+                    }
+                  }
+                },
+                "children": [
+                  {
+                    "action": {
+                      "type": "DONE",
+                      "context": "Fail"
+                    }
+                  },
+                  {
+                    "action": {
+                      "type": "APC_MAPPING",
+                      "context": "Success",
+                      "authenticationPolicyContractRef": {
+                        "id": "AgentCoreApc"
+                      },
+                      "attributeMapping": {
+                        "attributeSources": [],
+                        "attributeContractFulfillment": {
+                          "subject": {
+                            "source": {
+                              "type": "ADAPTER",
+                              "id": "AgentCoreLoginAdapter"
+                            },
+                            "value": "username"
+                          }
+                        },
+                        "issuanceCriteria": {
+                          "conditionalCriteria": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "id": "NFXRkYLVlLbCqrAfVp5ffdCyd",
+              "name": "AgentCore Login",
+              "enabled": true,
+              "handleFailuresLocally": false
+            }
+          ],
+          "defaultAuthenticationSources": [],
+          "trackedHttpParameters": []
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
+      "resourceType": "/authenticationPolicies/settings",
+      "items": [
+        {
+          "enableIdpAuthnSelection": true,
+          "enableSpAuthnSelection": false
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
       "resourceType": "/idp/tokenProcessors",
       "items": [
         {
