@@ -82,6 +82,9 @@ require_value PF_AGENT_CLIENT_ID
 P12_FILE="${ROOT_DIR}/keys/agentcore-ssl-server.p12"
 if [[ ! -f "${P12_FILE}" ]]; then
   "${ROOT_DIR}/scripts/generate-keys.sh"
+  # generate-keys.sh writes the password into .env; re-source it (common.sh
+  # sourced the file before the password existed).
+  set -a; source "${ROOT_DIR}/.env"; set +a
 fi
 AGENTCORE_SSL_SERVER_P12_PASSWORD="${AGENTCORE_SSL_SERVER_P12_PASSWORD:?AGENTCORE_SSL_SERVER_P12_PASSWORD missing — generate-keys.sh writes it into .env}"
 AGENTCORE_SSL_SERVER_P12_FILEDATA="$(base64 -i "${P12_FILE}" | tr -d '\n')"
@@ -124,6 +127,13 @@ ping-devops:
       PING_IDENTITY_PASSWORD: "${PING_IDENTITY_PASSWORD}"
       AGENTCORE_SSL_SERVER_P12_PASSWORD: "${AGENTCORE_SSL_SERVER_P12_PASSWORD}"
       AGENTCORE_SSL_SERVER_P12_FILEDATA: "${AGENTCORE_SSL_SERVER_P12_FILEDATA}"
+      # Public hostnames: the image stamps these into discovery/issuer
+      # metadata (without them the engines advertise localhost:9031, which
+      # is unreachable from AWS AgentCore). Same envs id41 uses.
+      PF_ENGINE_PUBLIC_HOSTNAME: "${PF_PUBLIC_HOSTNAME}"
+      PF_ENGINE_PUBLIC_PORT_HTTPS: "443"
+      PF_ADMIN_PUBLIC_HOSTNAME: "${PF_RELEASE}-pingfederate-admin.ping-devops.com"
+      PF_ADMIN_PUBLIC_PORT_HTTPS: "443"
       SERVER_PROFILE_URL: "${PROFILE_URL_WITH_CREDS}"
       SERVER_PROFILE_PATH: "${PROFILE_PATH}"
       SERVER_PROFILE_BRANCH: "${SERVER_PROFILE_BRANCH}"
