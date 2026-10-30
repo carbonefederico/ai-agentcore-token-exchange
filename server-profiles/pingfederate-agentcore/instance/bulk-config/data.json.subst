@@ -776,7 +776,8 @@
           "authorizationCodeTimeout": 60,
           "authorizationCodeEntropy": 30,
           "refreshTokenLength": 42,
-          "refreshRollingInterval": 0
+          "refreshRollingInterval": 0,
+          "tokenEndpointBaseUrl": "https://${PF_ENGINE_PUBLIC_HOSTNAME}/as/token.oauth2"
         }
       ]
     },
