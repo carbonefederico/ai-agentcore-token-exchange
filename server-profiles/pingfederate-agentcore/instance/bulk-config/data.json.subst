@@ -93,7 +93,7 @@
           "type": "MAP",
           "mapValue": {
             "issuerMustBeEqualToClientId": "false",
-            "JWT_CLIENT_AUTHENTICATION_EXPECTED_TYPE_HEADER": "JWT"
+            "jwtClientAuthenticationExpectedType": "JWT"
           }
         }
       ]
