@@ -19,8 +19,8 @@ require AWS_REGION
 REGION="${AWS_REGION}"
 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
 # Same hostname convention as scripts/deploy.sh: <release>-pingfederate-engine
-# .ping-devops.com (release name pf).
-PF_PUBLIC_HOSTNAME="${PF_PUBLIC_HOSTNAME:-pf-pingfederate-engine.ping-devops.com}"
+# .ping-devops.com (release name = the repo folder name).
+PF_PUBLIC_HOSTNAME="${PF_PUBLIC_HOSTNAME:-ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com}"
 PF_TOKEN_ENDPOINT_AUDIENCE="${PF_TOKEN_ENDPOINT_AUDIENCE:-https://${PF_PUBLIC_HOSTNAME}/as/token.oauth2}"
 OAUTH_PROVIDER_NAME="${OAUTH_PROVIDER_NAME:-pingfederate-obo-poc}"
 ROLE_NAME="agentcore-demo-agent"
