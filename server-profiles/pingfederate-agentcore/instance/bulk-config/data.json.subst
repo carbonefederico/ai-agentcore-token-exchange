@@ -85,21 +85,6 @@
     },
     {
       "operationType": "SAVE",
-      "resourceType": "/configStore",
-      "subResource": "oauth-credentials-validator",
-      "items": [
-        {
-          "id": "settings",
-          "type": "MAP",
-          "mapValue": {
-            "issuerMustBeEqualToClientId": "false",
-            "jwtClientAuthenticationExpectedType": "JWT"
-          }
-        }
-      ]
-    },
-    {
-      "operationType": "SAVE",
       "resourceType": "/passwordCredentialValidators",
       "items": [
         {
@@ -121,11 +106,11 @@
                       },
                       {
                         "name": "Password",
-                        "value": "changeme"
+                        "value": "2FederateM0re"
                       },
                       {
                         "name": "Confirm Password",
-                        "value": "changeme"
+                        "value": "2FederateM0re"
                       },
                       {
                         "name": "Relax Password Requirements",
@@ -146,7 +131,7 @@
                       },
                       {
                         "name": "Confirm Password",
-                        "value": "changeme"
+                        "value": "2FederateM0re"
                       },
                       {
                         "name": "Relax Password Requirements",
