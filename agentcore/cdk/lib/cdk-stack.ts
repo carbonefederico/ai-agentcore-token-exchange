@@ -56,5 +56,28 @@ export class AgentCoreStack extends Stack {
         `arn:aws:secretsmanager:${REGION}:${ACCOUNT}:secret:bedrock-agentcore-identity!default/oauth2/pingfederate-obo-poc*`,
       ],
     }));
+    // AgentCore Identity mints the client assertion / actor token (an AWS IAM
+    // identity JWT) on behalf of this role - the role needs sts:GetWebIdentityToken.
+    // NOTE: Resource '*' is required; the API does not honor the 'self'
+    // pseudo-resource in identity policies (verified 2026-10-30).
+    runtime.addToPolicy(new iam.PolicyStatement({
+      sid: 'StsIdentityToken',
+      actions: ['sts:GetWebIdentityToken'],
+      resources: ['*'],
+      conditions: {
+        StringEquals: {
+          'sts:IdentityTokenAudience': 'https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2',
+        },
+        NumericLessThanEquals: { 'sts:DurationSeconds': 300 },
+      },
+    }));
+    // The provider's private_key_jwt client authentication signs the client
+    // assertion with this KMS key (AgentCore Identity calls kms:Sign using the
+    // runtime role's credentials).
+    runtime.addToPolicy(new iam.PolicyStatement({
+      sid: 'KmsSignClientAssertion',
+      actions: ['kms:Sign', 'kms:DescribeKey'],
+      resources: ['arn:aws:kms:eu-central-1:574076504146:key/5ef87a2b-677a-40b3-b811-61bb2684c68a'],
+    }));
   }
 }
