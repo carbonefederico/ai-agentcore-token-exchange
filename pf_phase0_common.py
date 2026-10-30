@@ -2,7 +2,9 @@
 
 Used by pf_phase0_preflight.py and pf_phase0_exchange.py.
 
-Security: tokens are handled in memory only, never logged or persisted.
+Security: tokens stay in memory during the flow; the CLI's token cache
+(tokens.cache) holds them on disk locally (git-ignored) so demo runs
+don't re-login on every invocation.
 """
 
 import base64
@@ -11,6 +13,7 @@ import json
 import secrets
 import sys
 import urllib.parse
+from pathlib import Path
 
 try:
     import boto3
@@ -86,10 +89,87 @@ def browser_login(config):
     Opens the user's browser for interactive login and catches the redirect
     on a short-lived loopback listener. Requires the PF client to register
     redirect URI http://127.0.0.1:<PF_REDIRECT_PORT>/callback.
+
+    Caches the token on disk (tokens.cache, git-ignored) so repeated demo
+    runs don't need a fresh browser login. The cached token is reused until
+    it expires; a refresh_token is used when present, else a new login runs.
     """
     import http.server
     import threading
     import webbrowser
+
+    cached = _load_cached_token(config)
+    if cached:
+        refreshed = _try_refresh(config, cached)
+        if refreshed:
+            return refreshed
+        if _token_valid(cached.get("access_token")):
+            return cached["access_token"]
+    return _browser_login_uncached(config)
+
+
+CACHE_FILE = Path(__file__).resolve().parent / "tokens.cache"
+
+
+def _load_cached_token(config):
+    try:
+        return json.loads(CACHE_FILE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _save_cached_token(token_resp_json):
+    try:
+        CACHE_FILE.write_text(json.dumps(token_resp_json))
+    except OSError:
+        pass  # best effort; the demo still works without a cache
+
+
+def _token_valid(token):
+    """True if the JWT is decodable and not expired (30s skew)."""
+    import time
+    try:
+        claims = decode_jwt_claims(token, "cached_token")
+    except SystemExit:
+        return False
+    exp = claims.get("exp")
+    return bool(exp) and exp > time.time() + 30
+
+
+def _try_refresh(config, cached):
+    """Refresh-token grant against PF; None on any failure."""
+    refresh_token = cached.get("refresh_token")
+    if not refresh_token:
+        return None
+    urls = build_urls(config)
+    client_id = require(config, "PF_CLI_CLIENT_ID")
+    secret = optional(config, "PF_CLI_CLIENT_SECRET", "")
+    try:
+        resp = requests.post(
+            f"{urls['runtime']}/as/token.oauth2",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": client_id,
+            },
+            auth=(client_id, secret) if secret else None,
+            timeout=30,
+        )
+    except requests.RequestException:
+        return None
+    if resp.status_code != 200:
+        return None
+    body = resp.json()
+    if not body.get("access_token"):
+        return None
+    # PF rolls refresh tokens; keep the un-rotated one if a new one isn't returned.
+    body.setdefault("refresh_token", refresh_token)
+    _save_cached_token(body)
+    return body["access_token"]
+
+
+def _browser_login_uncached(config):
+    """The interactive browser flow; caches the result on success."""
 
     urls = build_urls(config)
     client_id = require(config, "PF_CLI_CLIENT_ID")
@@ -164,9 +244,11 @@ def browser_login(config):
     )
     if token_resp.status_code != 200:
         sys.exit(f"Token request failed: HTTP {token_resp.status_code}: {token_resp.text[:300]}")
-    access_token = token_resp.json().get("access_token")
+    body = token_resp.json()
+    access_token = body.get("access_token")
     if not access_token:
         sys.exit("Token response contained no access_token.")
+    _save_cached_token(body)
     return access_token
 
 
