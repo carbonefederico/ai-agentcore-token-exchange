@@ -33,7 +33,9 @@ def main():
     # 2. Resolve the runtime endpoint. AGENT_RUNTIME_NAME holds the runtime
     #    ID as reported by `agentcore status` (e.g.
     #    tokenexchangeagent_default_exchange_agent-AbCdEfGhIp).
-    account = boto3.client("sts", region_name=region).get_caller_identity()["Account"]
+    account = config.get("AWS_ACCOUNT_ID", "").strip()
+    if not account:
+        account = boto3.client("sts", region_name=region).get_caller_identity()["Account"]
     runtime_id = runtime_name
     runtime_arn = f"arn:aws:bedrock-agentcore:{region}:{account}:runtime/{runtime_id}"
     runtime_url = (
