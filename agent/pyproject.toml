@@ -1,0 +1,12 @@
+[project]
+name = "agentcore-exchange-agent"
+version = "0.1.0"
+description = "Secretless on-behalf-of token exchange agent (AgentCore Runtime + PingFederate)."
+requires-python = ">=3.11"
+dependencies = [
+    "bedrock-agentcore>=1.14.1",
+    "boto3>=1.40.0",
+]
+
+[tool.setuptools]
+py-modules = ["main"]
