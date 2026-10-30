@@ -9,6 +9,9 @@
       "entrypoint": "main.py",
       "codeLocation": "agent",
       "runtimeVersion": "PYTHON_3_14",
+      "instrumentation": {
+        "enableOtel": true
+      },
       "envVars": [
         {
           "name": "CREDENTIAL_PROVIDER_NAME",
