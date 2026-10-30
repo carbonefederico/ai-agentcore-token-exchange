@@ -85,6 +85,21 @@
     },
     {
       "operationType": "SAVE",
+      "resourceType": "/configStore",
+      "subResource": "oauth-credentials-validator",
+      "items": [
+        {
+          "id": "settings",
+          "type": "MAP",
+          "mapValue": {
+            "issuerMustBeEqualToClientId": "false",
+            "JWT_CLIENT_AUTHENTICATION_EXPECTED_TYPE_HEADER": "JWT"
+          }
+        }
+      ]
+    },
+    {
+      "operationType": "SAVE",
       "resourceType": "/passwordCredentialValidators",
       "items": [
         {
