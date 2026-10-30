@@ -67,7 +67,7 @@ export class AgentCoreStack extends Stack {
         ForAllValuesStringEquals: {
           'sts:IdentityTokenAudience': 'https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2',
         },
-        NumericLessThanEquals: { 'sts:DurationSeconds': 300 },
+        NumericLessThanEquals: { 'sts:DurationSeconds': '300' },
       },
     }));
   }
