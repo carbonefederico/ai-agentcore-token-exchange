@@ -56,5 +56,19 @@ export class AgentCoreStack extends Stack {
         `arn:aws:secretsmanager:${REGION}:${ACCOUNT}:secret:bedrock-agentcore-identity!default/oauth2/pingfederate-obo-poc*`,
       ],
     }));
+    // The secretless client assertion is the AWS-issued IAM identity JWT. The
+    // runtime role itself calls sts:GetWebIdentityToken (audience = the PF
+    // token endpoint), so AgentCore Identity can mint the actor token.
+    runtime.addToPolicy(new iam.PolicyStatement({
+      sid: 'StsIdentityToken',
+      actions: ['sts:GetWebIdentityToken'],
+      resources: [`arn:aws:sts::${ACCOUNT}:self`],
+      conditions: {
+        ForAllValues:StringEquals: {
+          'sts:IdentityTokenAudience': 'https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2',
+        },
+        NumericLessThanEquals: { 'sts:DurationSeconds': 300 },
+      },
+    }));
   }
 }
