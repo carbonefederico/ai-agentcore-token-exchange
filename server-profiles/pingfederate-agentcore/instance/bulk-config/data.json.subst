@@ -990,7 +990,7 @@
             "type": "PRIVATE_KEY_JWT"
           },
           "jwksSettings": {
-            "jwks": {"keys": [{"kty": "RSA", "kid": "agentcore-pf-poc-1", "use": "sig", "alg": "RS256", "n": "rURlvPiQn3pv43IQDkyvZDPtDlu02WWdZUrD6Rv8plk3mZnrCBtUUWIhP2jPzFBuqYgyAQ7t2OFds6fv87iJjbT9oJCRafmt7bnL0CsYOfHAzwSocpA7OkfqOWRNe1LyDpANfALRMsbsRGwCJ_7FOf8OousBPiW6yI648ecrXKIOp2xKk3_hkMbvgHqYwmHgSe7EFMWGbjeqmFB70KOEYE_TGWf_cH9eEz__NuIgLdPpengnKhqxYeJkx4z_DiOl7yuTJ_f1Z4-6XeSO3si1PqCP0wYHRw6HvvUpKmZJRXP7Z2DHtsLI8b7-8wskV-8EII_xmbkeUxztoNzNM5TwBQ", "e": "AQAB"}]}
+            "jwks": "{\"keys\": [{\"kty\": \"RSA\", \"kid\": \"agentcore-pf-poc-1\", \"use\": \"sig\", \"alg\": \"RS256\", \"n\": \"rURlvPiQn3pv43IQDkyvZDPtDlu02WWdZUrD6Rv8plk3mZnrCBtUUWIhP2jPzFBuqYgyAQ7t2OFds6fv87iJjbT9oJCRafmt7bnL0CsYOfHAzwSocpA7OkfqOWRNe1LyDpANfALRMsbsRGwCJ_7FOf8OousBPiW6yI648ecrXKIOp2xKk3_hkMbvgHqYwmHgSe7EFMWGbjeqmFB70KOEYE_TGWf_cH9eEz__NuIgLdPpengnKhqxYeJkx4z_DiOl7yuTJ_f1Z4-6XeSO3si1PqCP0wYHRw6HvvUpKmZJRXP7Z2DHtsLI8b7-8wskV-8EII_xmbkeUxztoNzNM5TwBQ\", \"e\": \"AQAB\"}]}"
           },
           "tokenExchangeProcessorPolicyRef": {
             "id": "AgentCoreTokenExchangePolicy",
