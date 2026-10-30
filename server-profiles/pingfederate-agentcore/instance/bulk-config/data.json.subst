@@ -925,7 +925,7 @@
       "resourceType": "/oauth/clients",
       "items": [
         {
-          "clientId": "${PF_AGENT_CLIENT_ID}",
+          "clientId": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B",
           "name": "AgentCore Exchange Agent (AWS IAM identity JWT)",
           "enabled": true,
           "grantTypes": [
