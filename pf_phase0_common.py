@@ -211,20 +211,20 @@ def _browser_login_uncached(config):
             pass
 
     server = http.server.HTTPServer(("127.0.0.1", port), CallbackHandler)
-    server.timeout = 120
+    server.timeout = 300
     thread = threading.Thread(target=server.handle_request, daemon=True)
     thread.start()
 
     print("Authenticating user with PingFederate...")
     print(f"Opening browser: {auth_url}")
     webbrowser.open(auth_url)
-    thread.join(timeout=120)
+    thread.join(timeout=300)
     server.server_close()
 
     if not captured.get("code"):
         if captured.get("error"):
             sys.exit(f"Login failed: authorization server returned error '{captured['error']}'.")
-        sys.exit("No authorization code received within 120s.")
+        sys.exit("No authorization code received within 300s.")
 
     if captured["state"] != state:
         sys.exit("Login failed: state mismatch (possible CSRF) — aborting.")
