@@ -652,7 +652,7 @@
               },
               {
                 "name": "Audience Claim Value",
-                "value": ""
+                "value": "https://agentcore.demo.internal/invoke"
               },
               {
                 "name": "Type Header Value",
