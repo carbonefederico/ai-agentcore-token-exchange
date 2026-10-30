@@ -1,23 +1,22 @@
-"""AgentCore hosted agent: secretless on-behalf-of token exchange via PingFederate.
+"""AgentCore hosted agent: direct secretless on-behalf-of token exchange to PingFederate.
 
 Flow (see SPEC.md):
   1. AgentCore Runtime validates the inbound PingFederate user JWT
      (custom JWT authorizer) and forwards the Authorization header.
-  2. Runtime supplies the workload access token via the SDK context
-     (BedrockAgentCoreContext.get_workload_access_token()).
-  3. The agent calls GetResourceOauth2Token with
-     oauth2Flow=ON_BEHALF_OF_TOKEN_EXCHANGE; AgentCore Identity performs the
-     full secretless exchange (AWS IAM identity JWT as client assertion and
-     actor token; inbound user JWT as subject token).
-  4. The agent decodes the exchanged token (signature NOT verified — display
-     only) and returns its claims.
+  2. The agent calls sts:GetWebIdentityToken to obtain an AWS IAM identity
+     JWT for its own workload role (no stored secret - AWS signs it).
+  3. The agent POSTs the RFC 8693 exchange DIRECTLY to PingFederate:
+       grant_type=token-exchange, client_id=<workload role ARN> (no client
+       credentials - PF client auth is NONE), subject_token=<user JWT>,
+       actor_token=<AWS identity JWT>.
+  4. PF validates the actor token with AwsStsTokenProcessor (issuer + JWKS
+     configured on the token processor) and issues a user-context token.
 
-The agent never sees tokens' raw material outside its process, never calls
-STS, never implements OAuth itself, and holds no secrets.
+AgentCore Identity is not involved in the outbound leg (see docs/LIMITATIONS:
+AgentCore's credential provider always attaches client credentials, which a
+client-auth=NONE OAuth client must reject).
 
 The LLM/tool reference code at the bottom ships DISABLED (commented out).
-The goal of this demo is the secretless token exchange; that code shows how
-the exchanged token would be used downstream.
 """
 
 import json
@@ -25,6 +24,7 @@ import logging
 import os
 
 import boto3
+import requests
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from bedrock_agentcore.runtime.context import BedrockAgentCoreContext
 
@@ -33,9 +33,12 @@ logger = logging.getLogger("agentcore-exchange-agent")
 
 app = BedrockAgentCoreApp()
 
-REGION = boto3.session.Session().region_name or "us-east-1"
-CREDENTIAL_PROVIDER_NAME = os.environ.get("CREDENTIAL_PROVIDER_NAME", "pingfederate-obo-poc")
+REGION = boto3.session.Session().region_name or "eu-central-1"
+PF_TOKEN_URL = os.environ["PF_TOKEN_URL"]
+PF_AGENT_CLIENT_ID = os.environ["PF_AGENT_CLIENT_ID"]
 EXCHANGE_SCOPES = os.environ.get("EXCHANGE_SCOPES", "demo:read").split()
+
+STS_AUDIENCE = PF_TOKEN_URL  # the exchange target doubles as the STS token audience
 
 
 def _decode_jwt_claims(token: str) -> dict:
@@ -47,38 +50,58 @@ def _decode_jwt_claims(token: str) -> dict:
     return json.loads(base64.urlsafe_b64decode(payload))
 
 
+def _get_aws_identity_jwt() -> str:
+    """Mint a short-lived AWS IAM identity JWT via sts:GetWebIdentityToken."""
+    sts = boto3.client("sts", region_name=REGION)
+    resp = sts.get_web_identity_token(
+        Audience=[STS_AUDIENCE],
+        DurationSeconds=300,
+    )
+    return resp["WebIdentityToken"]
+
+
 @app.entrypoint
 def invoke(payload, context):
-    # 1. The inbound user JWT arrives (validated by Runtime) in the
-    #    Authorization header — allowlisted via requestHeaderConfiguration.
-    #    It is only logged as a claim summary; the token itself is not.
-    workload_access_token = BedrockAgentCoreContext.get_workload_access_token()
-    if not workload_access_token:
-        return {
-            "error": "no_workload_access_token",
-            "hint": (
-                "Runtime did not supply a workload access token. Verify the "
-                "runtime's inbound authorizer is customJWTAuthorizer and the "
-                "invocation carried the user JWT."
-            ),
-        }
+    # 1. The inbound user JWT arrives in the Authorization header
+    #    (allowlisted via requestHeaderConfiguration on the runtime).
+    headers = BedrockAgentCoreContext.get_request_headers() or {}
+    user_token = headers.get("Authorization", "").removeprefix("Bearer ").strip()
+    if not user_token:
+        return {"error": "no_user_token", "hint": "Authorization header missing from the invocation."}
 
-    # 2. The secretless OBO exchange — AgentCore Identity does everything.
-    agentcore = boto3.client("bedrock-agentcore", region_name=REGION)
-    resp = agentcore.get_resource_oauth2_token(
-        workloadIdentityToken=workload_access_token,
-        resourceCredentialProviderName=CREDENTIAL_PROVIDER_NAME,
-        oauth2Flow="ON_BEHALF_OF_TOKEN_EXCHANGE",
-        scopes=EXCHANGE_SCOPES,
+    # 2. AWS-issued identity JWT for the actor role (secretless: AWS signs).
+    aws_jwt = _get_aws_identity_jwt()
+
+    # 3. Direct RFC 8693 exchange against PingFederate. Client auth is NONE:
+    #    client_id identifies the client, no credentials are attached.
+    resp = requests.post(
+        PF_TOKEN_URL,
+        data={
+            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+            "client_id": PF_AGENT_CLIENT_ID,
+            "subject_token": user_token,
+            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+            "actor_token": aws_jwt,
+            "actor_token_type": "urn:ietf:params:oauth:token-type:jwt",
+            "scope": " ".join(EXCHANGE_SCOPES),
+        },
+        timeout=30,
     )
-    exchanged_token = resp["accessToken"]
+    if resp.status_code != 200:
+        logger.error("token exchange failed: HTTP %s %s", resp.status_code, resp.text[:300])
+        return {
+            "exchange": "FAILED",
+            "status": resp.status_code,
+            "error": resp.text[:300],
+        }
+    exchanged_token = resp.json()["access_token"]
 
-    # 3. Decode (not verify) the exchanged token's claims for display.
+    # 4. Decode (not verify) the exchanged token's claims for display.
     claims = _decode_jwt_claims(exchanged_token)
 
     return {
         "exchange": "SUCCESS",
-        "clientAuthentication": "AWS_IAM_ID_TOKEN_JWT (no client secret)",
+        "clientAuthentication": "NONE (client_id only, no secret)",
         "actorToken": "AWS_IAM_ID_TOKEN_JWT (sts:GetWebIdentityToken)",
         "claims": claims,
     }
@@ -87,13 +110,14 @@ def invoke(payload, context):
 # ============================================================================
 # DISCLAIMER — disabled on purpose.
 # The goal of this demo is the secretless OAuth token exchange between
-# AgentCore Identity and PingFederate. Everything above proves identity
-# delegation. The code below shows how the exchanged token would be used
-# downstream in a real agentic flow: the LLM invokes a tool that calls the
-# protected resource with the delegated token (sub = user, act.sub = agent
-# IAM role). It is NOT enabled in this demo. Enabling it requires
-# bedrock:InvokeModel permissions on the agent role, a reachable downstream
-# resource, and moving LLM integration out of this POC's out-of-scope list.
+# the AgentCore-hosted agent and PingFederate. Everything above proves
+# identity delegation. The code below shows how the exchanged token would
+# be used downstream in a real agentic flow: the LLM invokes a tool that
+# calls the protected resource with the delegated token (sub = user,
+# act.sub = agent IAM role). It is NOT enabled in this demo. Enabling it
+# requires bedrock:InvokeModel permissions on the agent role, a reachable
+# downstream resource, and moving LLM integration out of this POC's
+# out-of-scope list.
 # ============================================================================
 # import requests
 # from strands import Agent, tool

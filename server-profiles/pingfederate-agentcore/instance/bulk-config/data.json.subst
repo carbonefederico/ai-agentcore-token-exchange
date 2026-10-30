@@ -933,11 +933,7 @@
             "TOKEN_EXCHANGE"
           ],
           "clientAuth": {
-            "type": "PRIVATE_KEY_JWT",
-            "enforceReplayPrevention": false
-          },
-          "jwksSettings": {
-            "jwksUrl": "${AWS_STS_JWKS_URL}"
+            "type": "NONE"
           },
           "tokenExchangeProcessorPolicyRef": {
             "id": "AgentCoreTokenExchangePolicy",

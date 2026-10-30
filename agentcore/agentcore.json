@@ -14,8 +14,12 @@
       },
       "envVars": [
         {
-          "name": "CREDENTIAL_PROVIDER_NAME",
-          "value": "pingfederate-obo-poc"
+          "name": "PF_TOKEN_URL",
+          "value": "https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2"
+        },
+        {
+          "name": "PF_AGENT_CLIENT_ID",
+          "value": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B"
         },
         {
           "name": "EXCHANGE_SCOPES",
