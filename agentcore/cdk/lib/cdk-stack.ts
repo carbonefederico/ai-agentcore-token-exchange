@@ -64,7 +64,7 @@ export class AgentCoreStack extends Stack {
       actions: ['sts:GetWebIdentityToken'],
       resources: [`arn:aws:sts::${ACCOUNT}:self`],
       conditions: {
-        ForAllValues:StringEquals: {
+        ForAllValuesStringEquals: {
           'sts:IdentityTokenAudience': 'https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2',
         },
         NumericLessThanEquals: { 'sts:DurationSeconds': 300 },
