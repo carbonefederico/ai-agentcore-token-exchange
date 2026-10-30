@@ -94,10 +94,6 @@ def browser_login(config):
     runs don't need a fresh browser login. The cached token is reused until
     it expires; a refresh_token is used when present, else a new login runs.
     """
-    import http.server
-    import threading
-    import webbrowser
-
     cached = _load_cached_token(config)
     if cached:
         refreshed = _try_refresh(config, cached)
@@ -170,6 +166,9 @@ def _try_refresh(config, cached):
 
 def _browser_login_uncached(config):
     """The interactive browser flow; caches the result on success."""
+    import http.server
+    import threading
+    import webbrowser
 
     urls = build_urls(config)
     client_id = require(config, "PF_CLI_CLIENT_ID")
