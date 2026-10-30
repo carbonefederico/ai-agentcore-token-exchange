@@ -3,7 +3,8 @@
     "default": {
       "resources": {
         "credentials": {}
-      }
+      },
+      "stackArn": "arn:aws:cloudformation:eu-central-1:574076504146:stack/AgentCore-tokenexchangeagent-default/280bffb0-d43b-11f1-b1d6-06ffdf6e6fd1"
     }
   }
 }

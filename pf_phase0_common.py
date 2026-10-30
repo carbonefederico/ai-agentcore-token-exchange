@@ -159,6 +159,7 @@ def browser_login(config):
             "client_id": client_id,
             "code_verifier": verifier,
         },
+        auth=(client_id, optional(config, "PF_CLI_CLIENT_SECRET", "")) if optional(config, "PF_CLI_CLIENT_SECRET", "") else None,
         timeout=30,
     )
     if token_resp.status_code != 200:
