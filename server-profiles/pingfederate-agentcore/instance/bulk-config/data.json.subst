@@ -786,13 +786,13 @@
                   "source": {
                     "type": "SUBJECT_TOKEN"
                   },
-                  "value": "sub"
+                  "value": "client_id"
                 },
                 "subject_act": {
                   "source": {
                     "type": "ACTOR_TOKEN"
                   },
-                  "value": "sub"
+                  "value": "client_id"
                 }
               },
               "issuanceCriteria": {
@@ -816,13 +816,13 @@
                   "source": {
                     "type": "SUBJECT_TOKEN"
                   },
-                  "value": "sub"
+                  "value": "client_id"
                 },
                 "subject_act": {
                   "source": {
                     "type": "ACTOR_TOKEN"
                   },
-                  "value": "sub"
+                  "value": "client_id"
                 }
               },
               "issuanceCriteria": {
