@@ -756,86 +756,86 @@
       "operationType": "SAVE",
       "resourceType": "/oauth/tokenExchange/processor/policies",
       "items": [
-        {
-          "id": "AgentCoreTokenExchangePolicy",
-          "name": "AgentCore Token Exchange Policy",
-          "actorTokenRequired": true,
-          "attributeContract": {
-            "coreAttributes": [
-              {
-                "name": "subject"
-              }
-            ],
-            "extendedAttributes": [
-              {
-                "name": "subject_act"
-              }
-            ]
-          },
-          "processorMappings": [
-            {
-              "attributeSources": [],
-              "subjectTokenType": "urn:ietf:params:oauth:token-type:jwt",
-              "subjectTokenProcessor": {
-                "id": "PfUserTokenProcessor",
-                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfUserTokenProcessor"
-              },
-              "actorTokenType": "urn:ietf:params:oauth:token-type:jwt",
-              "actorTokenProcessor": {
-                "id": "PfClientTokenProcessor",
-                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfClientTokenProcessor"
-              },
-              "attributeContractFulfillment": {
-                "subject": {
-                  "source": {
-                    "type": "SUBJECT_TOKEN"
-                  },
-                  "value": "client_id"
-                },
-                "subject_act": {
-                  "source": {
-                    "type": "ACTOR_TOKEN"
-                  },
-                  "value": "client_id"
-                }
-              },
-              "issuanceCriteria": {
-                "conditionalCriteria": []
-              }
+      {
+            "id": "AgentCoreTokenExchangePolicy",
+            "name": "AgentCore Token Exchange Policy",
+            "actorTokenRequired": true,
+            "attributeContract": {
+                  "coreAttributes": [
+                        {
+                              "name": "subject"
+                        }
+                  ],
+                  "extendedAttributes": [
+                        {
+                              "name": "subject_act"
+                        }
+                  ]
             },
-{
-              "attributeSources": [],
-              "subjectTokenType": "urn:ietf:params:oauth:token-type:jwt",
-              "subjectTokenProcessor": {
-                "id": "PfUserTokenProcessor",
-                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfUserTokenProcessor"
-              },
-              "actorTokenType": "urn:ietf:params:oauth:token-type:access_token",
-              "actorTokenProcessor": {
-                "id": "PfClientTokenProcessor",
-                "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfClientTokenProcessor"
-              },
-              "attributeContractFulfillment": {
-                "subject": {
-                  "source": {
-                    "type": "SUBJECT_TOKEN"
+            "processorMappings": [
+                  {
+                        "attributeSources": [],
+                        "subjectTokenType": "urn:ietf:params:oauth:token-type:jwt",
+                        "subjectTokenProcessor": {
+                              "id": "PfUserTokenProcessor",
+                              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfUserTokenProcessor"
+                        },
+                        "actorTokenType": "urn:ietf:params:oauth:token-type:jwt",
+                        "actorTokenProcessor": {
+                              "id": "PfClientTokenProcessor",
+                              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfClientTokenProcessor"
+                        },
+                        "attributeContractFulfillment": {
+                              "subject": {
+                                    "source": {
+                                          "type": "SUBJECT_TOKEN"
+                                    },
+                                    "value": "sub"
+                              },
+                              "subject_act": {
+                                    "source": {
+                                          "type": "ACTOR_TOKEN"
+                                    },
+                                    "value": "client_id"
+                              }
+                        },
+                        "issuanceCriteria": {
+                              "conditionalCriteria": []
+                        }
                   },
-                  "value": "client_id"
-                },
-                "subject_act": {
-                  "source": {
-                    "type": "ACTOR_TOKEN"
-                  },
-                  "value": "client_id"
-                }
-              },
-              "issuanceCriteria": {
-                "conditionalCriteria": []
-              }
-            }
-          ]
-        }
-      ]
+                  {
+                        "attributeSources": [],
+                        "subjectTokenType": "urn:ietf:params:oauth:token-type:jwt",
+                        "subjectTokenProcessor": {
+                              "id": "PfUserTokenProcessor",
+                              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfUserTokenProcessor"
+                        },
+                        "actorTokenType": "urn:ietf:params:oauth:token-type:access_token",
+                        "actorTokenProcessor": {
+                              "id": "PfClientTokenProcessor",
+                              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfClientTokenProcessor"
+                        },
+                        "attributeContractFulfillment": {
+                              "subject": {
+                                    "source": {
+                                          "type": "SUBJECT_TOKEN"
+                                    },
+                                    "value": "sub"
+                              },
+                              "subject_act": {
+                                    "source": {
+                                          "type": "ACTOR_TOKEN"
+                                    },
+                                    "value": "client_id"
+                              }
+                        },
+                        "issuanceCriteria": {
+                              "conditionalCriteria": []
+                        }
+                  }
+            ]
+      }
+]
     },
     {
       "operationType": "SAVE",
