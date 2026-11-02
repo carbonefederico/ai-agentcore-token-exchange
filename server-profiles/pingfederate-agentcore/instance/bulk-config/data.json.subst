@@ -984,7 +984,8 @@
           "name": "AgentCore Exchange Agent (AWS IAM identity JWT)",
           "enabled": true,
           "grantTypes": [
-            "TOKEN_EXCHANGE"
+            "TOKEN_EXCHANGE",
+            "CLIENT_CREDENTIALS"
           ],
           "clientAuth": {
             "type": "PRIVATE_KEY_JWT"
