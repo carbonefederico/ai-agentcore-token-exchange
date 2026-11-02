@@ -15,7 +15,7 @@
       "envVars": [
         {
           "name": "CREDENTIAL_PROVIDER_NAME",
-          "value": "pingfederate-obo-poc"
+          "value": "pingfederate-obo-poc2"
         },
         {
           "name": "EXCHANGE_SCOPES",

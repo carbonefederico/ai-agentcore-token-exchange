@@ -44,7 +44,7 @@ export class AgentCoreStack extends Stack {
       actions: ['bedrock-agentcore:GetResourceOauth2Token'],
       resources: [
         `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:token-vault/default`,
-        `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:token-vault/default/oauth2credentialprovider/pingfederate-obo-poc`,
+        `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:token-vault/default/oauth2credentialprovider/pingfederate-obo-poc2`,
         `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:workload-identity-directory/default`,
         `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:workload-identity-directory/default/workload-identity/*`,
       ],
@@ -53,7 +53,7 @@ export class AgentCoreStack extends Stack {
       sid: 'CredentialProviderSecret',
       actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
       resources: [
-        `arn:aws:secretsmanager:${REGION}:${ACCOUNT}:secret:bedrock-agentcore-identity!default/oauth2/pingfederate-obo-poc*`,
+        `arn:aws:secretsmanager:${REGION}:${ACCOUNT}:secret:bedrock-agentcore-identity!default/oauth2/pingfederate-obo-poc2*`,
       ],
     }));
     // AgentCore Identity mints the client assertion / actor token (an AWS IAM
