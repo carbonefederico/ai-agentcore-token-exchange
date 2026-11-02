@@ -585,7 +585,11 @@
                 "name": "sub"
               }
             ],
-            "extendedAttributes": []
+            "extendedAttributes": [
+              {
+                "name": "client_id"
+              }
+            ]
           }
         }
       ]
