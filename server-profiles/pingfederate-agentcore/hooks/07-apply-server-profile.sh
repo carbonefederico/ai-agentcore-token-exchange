@@ -21,7 +21,11 @@ if test -d "${STAGING_DIR}/instance" && test -n "$(ls -A "${STAGING_DIR}/instanc
 fi
 
 # ---------------------------------------------------------------------
-# Register extra config-store files into the canonical data-default.zip
+# Register profile config-store files into the canonical data-default.zip.
+# PF treats the zip as the source of truth: entries absent from it are
+# pruned at boot, and entries present in it are restored over the merged
+# copies — so profile versions must be written into the zip whenever they
+# differ (both for new files and for image-provided files we override).
 # ---------------------------------------------------------------------
 ZIP="${SERVER_ROOT_DIR}/server/default/conf/data-default.zip"
 SRC="${STAGING_DIR}/instance/server/default/data/config-store"
@@ -29,7 +33,7 @@ if test -d "${SRC}" && test -f "${ZIP}"; then
     for f in "${SRC}"/*.xml; do
         test -f "$f" || continue
         name="$(basename "$f")"
-        if ! unzip -l "${ZIP}" 2>/dev/null | grep -q "config-store/${name}"; then
+        if ! unzip -p "${ZIP}" "config-store/${name}" 2>/dev/null | diff -q - "$f" >/dev/null 2>&1; then
             ZIPDIR="$(mktemp -d)/config-store"
             mkdir -p "${ZIPDIR}"
             cp "$f" "${ZIPDIR}/${name}"
