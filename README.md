@@ -29,8 +29,8 @@ agent/main.py                         The hosted agent (LLM stub disabled)
 agentcore/agentcore.json              AgentCore CLI runtime config
 agentcore/cdk/                        CDK app: IAM grants (KMS sign, token vault)
 cli/demo_cli.py                       The demo CLI client
-pf_common.py                          Shared helpers (login, token cache, config)
-pf_preflight.py                       Read-only PingFederate preflight checks
+scripts/pf_common.py                  Shared login helpers (PKCE flow, token cache)
+scripts/pf_preflight.py               Read-only PingFederate preflight checks
 server-profiles/pingfederate-agentcore/  Declarative PF config (bulk config)
 helm/pingfederate/values.yaml         Overrides for Ping's official chart
 scripts/                              deploy / verify / validate / uninstall
@@ -93,7 +93,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp config.example.env config.env        # PF_BASE_URL, AGENT_RUNTIME_NAME, etc.
 
-python3 pf_preflight.py                 # optional: endpoints + PF config checks
+python3 scripts/pf_preflight.py         # optional: endpoints + PF config checks
 python3 cli/demo_cli.py                 # login → invoke agent → claims
 ```
 

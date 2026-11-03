@@ -10,7 +10,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import boto3
 import requests

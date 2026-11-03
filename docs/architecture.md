@@ -147,7 +147,8 @@ the object-by-object table. The load-bearing pieces:
 
 See the [README](../README.md) for prerequisites, deployment steps
 (PingFederate via Helm, the agent via the AgentCore CLI) and the demo run.
-`pf_preflight.py` checks the PingFederate side before attempting the flow;
+`scripts/pf_preflight.py` checks the PingFederate side before attempting the
+flow;
 `aws/teardown.sh` and `scripts/uninstall.sh` remove everything.
 
 ## References

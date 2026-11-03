@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Phase 0 preflight: verify the preconfigured PingFederate objects exist.
+"""PingFederate preflight: verify the deployed configuration answers.
 
-Read-only Admin REST API checks (GET only). Run this before attempting any
-token exchange. Uses PF_ADMIN_TOKEN (bearer) against /pf-admin-api/v1;
-skips the admin checks with a warning if no token is configured.
+Read-only checks (GET only). Run this before attempting the demo flow.
+Uses PF_ADMIN_TOKEN (bearer) against /pf-admin-api/v1; skips the admin
+checks with a warning if no token is configured.
 
-Usage: python3 pf_preflight.py
+Usage: python3 scripts/pf_preflight.py
 """
 
 import sys

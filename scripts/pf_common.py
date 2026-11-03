@@ -1,6 +1,6 @@
-"""Shared helpers for the Phase 0 PingFederate validation scripts.
+"""Shared helpers for the PingFederate demo tooling.
 
-Used by pf_preflight.py and cli/demo_cli.py.
+Used by scripts/pf_preflight.py and cli/demo_cli.py.
 
 Security: tokens stay in memory during the flow; the CLI's token cache
 (tokens.cache) holds them on disk locally (git-ignored) so demo runs
@@ -25,8 +25,10 @@ class PreflightError(Exception):
     """Preconfigured PingFederate objects are missing or misconfigured."""
 
 
-def load_config(path="config.env"):
-    """Parse KEY=VALUE lines from config.env into a dict."""
+def load_config(path=None):
+    """Parse KEY=VALUE lines from config.env (repo root) into a dict."""
+    if path is None:
+        path = Path(__file__).resolve().parents[1] / "config.env"
     config = {}
     try:
         with open(path, encoding="utf-8") as handle:
@@ -103,7 +105,9 @@ def browser_login(config):
     return _browser_login_uncached(config)
 
 
-CACHE_FILE = Path(__file__).resolve().parent / "tokens.cache"
+# The cache lives in the repo root next to config.env, regardless of where
+# this module is imported from.
+CACHE_FILE = Path(__file__).resolve().parents[1] / "tokens.cache"
 
 
 def _load_cached_token(config):
