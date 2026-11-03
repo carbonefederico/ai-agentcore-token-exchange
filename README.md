@@ -20,6 +20,107 @@ outbound flow, so the agent code holds no OAuth logic and no credentials.
 - Full architecture: **[docs/architecture.md](docs/architecture.md)** —
   flow, components, token shape, and design rationale.
 
+## The exchange, end to end
+
+Four tokens participate in the demo; each is decoded (never verified
+cryptographically — display only) at the point where our code sees it.
+Real claim values from a verified run:
+
+**1. User token — issued by PingFederate after the browser login**
+(`tests/demo_cli.py`, Authorization Code + PKCE as the confidential client
+`agentcore-demo-cli`). This is the exchange's **subject token**; AgentCore
+Runtime validates it with its custom JWT authorizer before forwarding it:
+
+```json
+{
+  "iss": "https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com",
+  "aud": "https://agentcore.demo.internal/invoke",
+  "sub": "demouser",
+  "client_id": "agentcore-demo-cli",
+  "scope": "openid demo:read",
+  "iat": 1793712826,
+  "exp": 1793713726
+}
+```
+
+**2. Client assertion — signed by AWS KMS, sent as `private_key_jwt` client
+authentication** on the exchange request. AgentCore Identity signs it with
+the customer-managed KMS key (`kms:Sign`); PingFederate validates it
+against the client's inline public-key JWKS. Lifetime is ~90 seconds and it
+is minted fresh per exchange:
+
+```json
+{
+  "iss": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B",
+  "sub": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B",
+  "aud": "https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2",
+  "jti": "<uuid>",
+  "iat": 1793711082,
+  "nbf": 1793711082,
+  "exp": 1793711172
+}
+```
+
+**3. Actor token — the AWS IAM identity JWT**, obtained by AgentCore
+Identity via `sts:GetWebIdentityToken` (audience = the PingFederate token
+endpoint, ≤ 5 minutes). This is the AWS-signed proof of the agent's
+workload identity; PingFederate validates it against the account's STS
+issuer/JWKS and maps its `sub` into `act.sub`:
+
+```json
+{
+  "iss": "https://a1d2bfe2-6e32-49b2-ab3c-aefda84f2188.tokens.sts.global.api.aws",
+  "aud": "https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2",
+  "sub": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B",
+  "https://sts.amazonaws.com/": {
+    "aws_account": "574076504146",
+    "org_id": "o-yodmnogh9l",
+    "principal_id": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B",
+    "source_region": "eu-central-1"
+  },
+  "jti": "<uuid>",
+  "iat": 1793713047,
+  "nbf": 1793713047,
+  "exp": 1793713347
+}
+```
+
+**4. Delegated token — issued by PingFederate's token-exchange policy**,
+combining all three inputs. This is what a downstream resource server would
+receive: the user who is being acted for (`sub`), the agent that acts
+(`act.sub`, from the AWS JWT), and the scope the policy allows:
+
+```json
+{
+  "iss": "https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com",
+  "sub": "demouser",
+  "act": {
+    "sub": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B"
+  },
+  "client_id": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B",
+  "scope": "demo:read",
+  "iat": 1793712831,
+  "exp": 1793713731
+}
+```
+
+`aud` is absent from the delegated token in this demo because the CLI does
+not pass an RFC 8707 `resource` parameter; when one is passed,
+PingFederate's token mapping stamps `aud` from it.
+
+## What the deployed agent actually does
+
+The agent deployed to AgentCore Runtime is a **harness, not a product**: it
+does nothing meaningful beyond exercising identity. On each invocation it
+(1) takes the workload access token provided by the SDK context, (2) calls
+`GetResourceOauth2Token` to trigger the exchange above, (3) decodes the
+delegated token and returns its claims to the CLI. No LLM call, no
+downstream API. The LLM/tool reference code — showing how the delegated
+token would be used in a real agent (a Bedrock turn whose tool calls the
+protected resource with the delegated token) — ships **commented out** in
+`agent/main.py` with a disclaimer; enabling it is out of scope for this
+POC.
+
 ## Repository layout
 
 ```
