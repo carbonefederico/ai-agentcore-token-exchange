@@ -38,6 +38,13 @@ app = BedrockAgentCoreApp()
 REGION = boto3.session.Session().region_name or "us-east-1"
 CREDENTIAL_PROVIDER_NAME = os.environ.get("CREDENTIAL_PROVIDER_NAME", "pingfederate-obo-poc")
 EXCHANGE_SCOPES = os.environ.get("EXCHANGE_SCOPES", "demo:read").split()
+# The backend the agent acts on (hypothetical MCP server). The agent knows
+# this target — AgentCore Identity carries it into the token-exchange
+# request as the RFC 8707 "resource" parameter, and PingFederate stamps the
+# delegated token's aud from it. Must match the delegated ATM's
+# selectionSettings.resourceUris in the server profile.
+EXCHANGE_RESOURCES = os.environ.get(
+    "EXCHANGE_RESOURCES", "https://demo.example.internal/resource").split()
 
 
 def _decode_jwt_claims(token: str) -> dict:
@@ -72,6 +79,7 @@ def invoke(payload, context):
         resourceCredentialProviderName=CREDENTIAL_PROVIDER_NAME,
         oauth2Flow="ON_BEHALF_OF_TOKEN_EXCHANGE",
         scopes=EXCHANGE_SCOPES,
+        resources=EXCHANGE_RESOURCES,
     )
     exchanged_token = resp["accessToken"]
 

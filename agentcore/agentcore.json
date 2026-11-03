@@ -20,6 +20,10 @@
         {
           "name": "EXCHANGE_SCOPES",
           "value": "demo:read"
+        },
+        {
+          "name": "EXCHANGE_RESOURCES",
+          "value": "https://demo.example.internal/resource"
         }
       ],
       "protocol": "HTTP",

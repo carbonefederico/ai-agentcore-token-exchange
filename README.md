@@ -22,9 +22,7 @@ outbound flow, so the agent code holds no OAuth logic and no credentials.
 
 ## The exchange, end to end
 
-Four tokens participate in the demo; each is decoded (never verified
-cryptographically — display only) at the point where our code sees it.
-Real claim values from a verified run:
+Four tokens participate in the demo:
 
 **1. User token — issued by PingFederate after the browser login**
 (`tests/demo_cli.py`, Authorization Code + PKCE as the confidential client
@@ -104,9 +102,12 @@ receive: the user who is being acted for (`sub`), the agent that acts
 }
 ```
 
-`aud` is absent from the delegated token in this demo because the CLI does
-not pass an RFC 8707 `resource` parameter; when one is passed,
-PingFederate's token mapping stamps `aud` from it.
+`aud` is absent from the delegated token in this demo because the agent
+does not request a specific backend resource. In a real deployment the
+agent — which knows which backend it needs — passes the target URI in the
+`resources` parameter of `GetResourceOauth2Token`; AgentCore Identity
+carries it into the token-exchange request (RFC 8707 `resource`), and
+PingFederate's token mapping stamps the delegated token's `aud` from it.
 
 ## What the deployed agent actually does
 

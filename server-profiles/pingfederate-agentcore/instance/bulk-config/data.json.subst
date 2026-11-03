@@ -740,11 +740,6 @@
               }
             ]
           },
-          "selectionSettings": {
-            "resourceUris": [
-              "https://demo.example.internal/resource"
-            ]
-          },
           "accessControlSettings": {
             "restrictClients": false,
             "allowedClients": []
