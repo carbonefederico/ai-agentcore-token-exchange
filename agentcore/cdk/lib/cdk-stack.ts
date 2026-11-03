@@ -69,12 +69,18 @@ export class AgentCoreStack extends Stack {
     // PingFederate token endpoint as audience. Resource '*' is required; the
     // API does not honor the 'self' pseudo-resource in identity policies
     // (verified 2026-10-30).
+    // ForAllValues: AgentCore's internal STS request does not always carry
+    // the audience context key; a plain StringEquals then fails to match and
+    // the whole statement is skipped (observed 2026-11-03). ForAllValues
+    // tolerates its absence while still constraining the value when present.
     runtime.addToPolicy(new iam.PolicyStatement({
       sid: 'StsIdentityToken',
       actions: ['sts:GetWebIdentityToken'],
       resources: ['*'],
       conditions: {
-        StringEquals: {
+        // The IAM operator is "ForAllValues:StringEquals"; as an object key
+        // it must be quoted (a colon is invalid unquoted in TS).
+        "ForAllValues:StringEquals": {
           'sts:IdentityTokenAudience': 'https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2',
         },
         NumericLessThanEquals: { 'sts:DurationSeconds': 300 },
