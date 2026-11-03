@@ -47,9 +47,19 @@ def main():
 
     print("Runtime endpoints (no auth):")
     ok = True
-    ok &= check(admin, f"{urls['runtime']}/.well-known/openid-configuration",
-                "OIDC discovery endpoint")
-    ok &= check(admin, f"{urls['runtime']}/.well-known/jwks.json",
+    discovery = check(admin, f"{urls['runtime']}/.well-known/openid-configuration",
+                      "OIDC discovery endpoint")
+    ok &= discovery
+    jwks_uri = None
+    if discovery:
+        try:
+            jwks_uri = requests.get(
+                f"{urls['runtime']}/.well-known/openid-configuration", timeout=30
+            ).json().get("jwks_uri")
+        except (requests.RequestException, ValueError):
+            pass
+    # PF publishes JWKS at /pf/JWKS (discovery's jwks_uri), not the RFC path.
+    ok &= check(admin, jwks_uri or f"{urls['runtime']}/pf/JWKS",
                 "PingFederate JWKS endpoint")
     if not ok:
         print("\nFix the runtime URL/ingress before continuing.")

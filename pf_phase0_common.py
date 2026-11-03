@@ -172,7 +172,7 @@ def _browser_login_uncached(config):
     urls = build_urls(config)
     client_id = require(config, "PF_CLI_CLIENT_ID")
     port = int(optional(config, "PF_REDIRECT_PORT", "8400"))
-    scope = optional(config, "PF_DEMO_SCOPE", "openid profile")
+    scope = optional(config, "PF_DEMO_SCOPE", "openid demo:read")
     redirect_uri = f"http://127.0.0.1:{port}/callback"
 
     # RFC 7636 PKCE verifier/challenge (S256).
