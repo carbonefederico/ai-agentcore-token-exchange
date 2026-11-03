@@ -24,34 +24,29 @@ outbound flow, so the agent code holds no OAuth logic and no credentials.
 
 ```mermaid
 flowchart LR
-    subgraph client["Client (tests/demo_cli.py)"]
-        CLI["Demo CLI\n(public user)"]
-    end
+    CLI["Demo CLI\ntests/demo_cli.py"]
 
     subgraph aws["AWS"]
-        RT["AgentCore Runtime\ninbound token validator\n(custom JWT authorizer)"]
-        AG["Hosted agent\nagent/main.py\n(identity harness)"]
-        ID["AgentCore Identity\noutbound token generator\n+ token vault"]
-        KMS["AWS KMS\nclient-assertion\nsigning key"]
-        STS["AWS STS\nIAM identity JWT\nissuer"]
+        direction TB
+        RT["AgentCore Runtime\ninbound token validator"]
+        AG["Hosted agent\nidentity harness"]
+        ID["AgentCore Identity\noutbound token generator"]
+        KMS["AWS KMS\nclient-assertion key"]
+        STS["AWS STS\nIAM identity JWT issuer"]
     end
 
-    subgraph pf["PingFederate (k8s)"]
-        AUTHN["Login / authn\n(form adapter, authz-code + PKCE)"]
-        TEPP["Token-exchange processor\n(TEPP: validates subject,\nactor and client assertion)"]
-        ATM["Access token managers\n(web + delegated)"]
-    end
+    PF["PingFederate k8s\nlogin + token exchange + ATM"]
 
-    CLI -- "1. authz-code + PKCE (browser)" --> AUTHN
-    AUTHN -- "2. user JWT" --> CLI
-    CLI -- "3. invoke (Bearer user JWT)" --> RT
-    RT -- "4. forward (workload token + user JWT)" --> AG
+    CLI -- "1. authz-code + PKCE, browser" --> PF
+    PF -- "2. user JWT" --> CLI
+    CLI -- "3. invoke, Bearer user JWT" --> RT
+    RT -- "4. forward" --> AG
     AG -- "5. GetResourceOauth2Token" --> ID
     ID -- "sign client assertion" --> KMS
-    ID -- "actor token (sts:GetWebIdentityToken)" --> STS
-    ID -- "6. RFC 8693 exchange\n(assertion + subject + actor)" --> TEPP
-    TEPP --> ATM
-    ATM -- "7. delegated token" --> ID
+    ID -- "actor token: sts:GetWebIdentityToken" --> STS
+    ID -- "6. RFC 8693 exchange: assertion + subject + actor" --> PF
+    PF -- "7. delegated token" --> ID
+    PF -- "fetch actor-token verification keys: STS JWKS" --> STS
     ID -- "8. access token" --> AG
     AG -- "9. claims only" --> CLI
 ```
@@ -61,8 +56,8 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as User (browser)
-    participant C as CLI (tests/demo_cli.py)
+    actor U as User
+    participant C as CLI
     participant PF as PingFederate
     participant RT as AgentCore Runtime
     participant A as Hosted agent
@@ -71,24 +66,25 @@ sequenceDiagram
     participant S as AWS STS
 
     U->>C: start demo
-    C->>PF: GET /as/authorization.oauth2 (client auth-code + PKCE)
+    C->>PF: authorization request, auth-code + PKCE
     PF->>U: login form
-    U->>PF: credentials (demouser)
+    U->>PF: credentials, demouser
     PF-->>C: redirect with code
-    C->>PF: POST /as/token.oauth2 (code + verifier)
-    PF-->>C: user JWT (subject token)
-    C->>RT: POST /invocations (Authorization: Bearer user JWT)
+    C->>PF: token request, code + verifier
+    PF-->>C: user JWT, subject token
+    C->>RT: invoke, Bearer user JWT
     RT->>RT: custom JWT authorizer validates against PF discovery
-    RT->>A: invoke (workload token via SDK context + user JWT)
-    A->>I: GetResourceOauth2Token (OBO exchange, scopes, resources)
-    I->>K: kms:Sign (client assertion, ~90 s)
-    I->>S: sts:GetWebIdentityToken (aud = PF token endpoint, ≤ 5 min)
-    S-->>I: AWS IAM identity JWT (actor token)
-    I->>PF: POST /as/token.oauth2 — RFC 8693 exchange (client assertion, subject = user JWT, actor = AWS JWT)
-    PF->>PF: validate assertion (inline JWKS), subject (own issuer), actor (AWS JWKS); TEPP builds claims
-    PF-->>I: delegated token (sub = user, act.sub = agent role)
+    RT->>A: invoke, workload token + user JWT
+    A->>I: GetResourceOauth2Token, OBO exchange, scopes, resources
+    I->>K: kms:Sign, client assertion, ~90 s
+    I->>S: sts:GetWebIdentityToken, aud = PF token endpoint
+    S-->>I: AWS IAM identity JWT, actor token
+    I->>PF: RFC 8693 exchange, assertion + subject + actor
+    PF->>S: fetch JWKS, actor-token verification keys
+    PF->>PF: validate assertion, subject, actor; build claims
+    PF-->>I: delegated token, sub = user, act.sub = agent role
     I-->>A: access token
-    A->>A: decode claims (display only)
+    A->>A: decode claims, display only
     A-->>RT: claims
     RT-->>C: claims
     C->>C: print claims
