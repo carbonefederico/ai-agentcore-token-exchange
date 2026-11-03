@@ -1,6 +1,6 @@
 """Shared helpers for the Phase 0 PingFederate validation scripts.
 
-Used by pf_phase0_preflight.py and cli/demo_cli.py.
+Used by pf_preflight.py and cli/demo_cli.py.
 
 Security: tokens stay in memory during the flow; the CLI's token cache
 (tokens.cache) holds them on disk locally (git-ignored) so demo runs

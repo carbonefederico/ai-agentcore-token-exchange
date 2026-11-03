@@ -6,7 +6,7 @@ botocore 1.43.x, against a PingFederate 13.1 OAuth server.
 credentials at all" design; the API findings below remain valid. The
 implemented design has since moved to KMS-signed `private_key_jwt` client
 auth with a PingFederate-issued actor token, brokered by AgentCore Identity —
-see [current-design.md](current-design.md) for the current flow.
+see [architecture.md](architecture.md) for the current flow.
 
 ## What we wanted
 
@@ -109,6 +109,7 @@ aws bedrock-agentcore-control update-oauth2-credential-provider --name <p> \
 ```
 
 If a future AgentCore release ships a working `NO_CLIENT` override (or a
-`NONE` provider auth method), the original design in SPEC.md can be restored
-by re-enabling the `GetResourceOauth2Token` call in `agent/main.py` and
-recreating the credential provider.
+`NONE` provider auth method), credential-free client authentication becomes
+possible again: recreate the credential provider without client credentials
+and keep the KMS-signed `private_key_jwt` only if the KMS variant is no
+longer wanted. See [architecture.md](architecture.md) for the current flow.

@@ -1,4 +1,5 @@
 config.env
+cli/config.env
 .env
 __pycache__/
 *.pyc
@@ -7,3 +8,6 @@ __pycache__/
 charts/
 keys/
 tokens.cache
+agentcore/.cli/
+agentcore/.cache/
+.DS_Store

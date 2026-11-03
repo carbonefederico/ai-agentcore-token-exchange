@@ -1,6 +1,6 @@
 """AgentCore hosted agent: secretless on-behalf-of token exchange via PingFederate.
 
-Flow (see docs/current-design.md):
+Flow (see docs/architecture.md):
   1. AgentCore Runtime validates the inbound PingFederate user JWT
      (custom JWT authorizer) and forwards the Authorization header.
   2. Runtime supplies the workload access token via the SDK context

@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import boto3
 import requests
 
-from pf_phase0_common import browser_login, load_config, require, build_urls
+from pf_common import browser_login, load_config, require, build_urls
 
 
 def main():

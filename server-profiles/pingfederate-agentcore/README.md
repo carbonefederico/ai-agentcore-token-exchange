@@ -4,7 +4,7 @@ Declarative PingFederate configuration imported at admin startup by the
 Ping Identity image (bulk config). Full-state: every admin restart re-imposes
 it. Do not hand-edit configuration in the admin console — changes are lost on
 redeploy. The overall design is documented in
-[docs/current-design.md](../../docs/current-design.md).
+[docs/architecture.md](../../docs/architecture.md).
 
 ## Objects provisioned
 

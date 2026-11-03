@@ -5,14 +5,14 @@ Read-only Admin REST API checks (GET only). Run this before attempting any
 token exchange. Uses PF_ADMIN_TOKEN (bearer) against /pf-admin-api/v1;
 skips the admin checks with a warning if no token is configured.
 
-Usage: python3 pf_phase0_preflight.py
+Usage: python3 pf_preflight.py
 """
 
 import sys
 
 import requests
 
-from pf_phase0_common import PreflightError, build_urls, load_config, optional
+from pf_common import PreflightError, build_urls, load_config, optional
 
 
 def check(client, url, description, expected=None):
