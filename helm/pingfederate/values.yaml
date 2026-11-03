@@ -2,8 +2,8 @@
 # no umbrella chart, no custom templates): chart-managed ingresses, 1 admin
 # + 1 engine, token exchange configured via this repo's server profile.
 # Subst variables for the profile's bulk config are supplied by
-# scripts/deploy.sh (release-derived hostnames, generated p12 filedata);
-# everything else lives here.
+# scripts/deploy.sh (release-derived hostnames); the SSL keypair is embedded
+# inline in the bulk config; everything else lives here.
 
 global:
   envs:

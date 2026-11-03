@@ -37,13 +37,19 @@ def items_for(rt):
     return []
 
 proc_ids = {i["id"] for i in items_for("/idp/tokenProcessors")}
-assert {"PfUserTokenProcessor", "AwsStsTokenProcessor"} <= proc_ids, proc_ids
+assert {"PfUserTokenProcessor", "PfClientTokenProcessor"} <= proc_ids, proc_ids
 
 atm_ids = {i["id"] for i in items_for("/oauth/accessTokenManagers")}
 assert {"AgentCoreDelegatedATM"} <= atm_ids, atm_ids
 
 client_ids = {i["clientId"] for i in items_for("/oauth/clients")}
-assert "${PF_AGENT_CLIENT_ID}" in client_ids, client_ids
+assert "agentcore-demo-cli" in client_ids, client_ids
+# The agent client_id is the CDK runtime execution role ARN (the KMS-design
+# client), hardcoded in the profile — it is the only client carrying a JWKS.
+assert any(
+    c["clientId"].startswith("arn:aws:iam::") and "jwksSettings" in c
+    for c in items_for("/oauth/clients")
+), client_ids
 
 tepps = items_for("/oauth/tokenExchange/processor/policies")
 assert tepps and tepps[0]["actorTokenRequired"] is True
@@ -54,15 +60,16 @@ EOF
 echo "Bulk config OK."
 
 if command -v helm >/dev/null 2>&1; then
-  # Full render of the umbrella chart (ping-devops subchart + our ingress
-  # and certificate templates).
+  # Render the published ping-devops chart with this repo's values file
+  # (deploy.sh's exact shape, no release values).
   helm repo add pingidentity https://helm.pingidentity.com/ --force-update >/dev/null 2>&1 || true
-  if helm template pf "${ROOT_DIR}/helm/pingfederate" \
-      --set-string pf.publicHost=pf.example.com >/dev/null 2>&1; then
-    echo "helm render OK (umbrella chart incl. ingress + certificate)."
+  if helm template pf pingidentity/ping-devops \
+      --values "${ROOT_DIR}/helm/pingfederate/values.yaml" >/dev/null 2>&1; then
+    echo "helm render OK (ping-devops chart + values.yaml)."
   else
     echo "helm render failed:" >&2
-    helm template pf "${ROOT_DIR}/helm/pingfederate" --set-string pf.publicHost=pf.example.com 2>&1 | tail -5 >&2
+    helm template pf pingidentity/ping-devops \
+      --values "${ROOT_DIR}/helm/pingfederate/values.yaml" 2>&1 | tail -5 >&2
     exit 1
   fi
 else

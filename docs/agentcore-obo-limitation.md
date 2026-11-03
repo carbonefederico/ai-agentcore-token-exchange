@@ -2,9 +2,11 @@
 
 **Status:** confirmed empirically on 2026-10-30, eu-central-1, AgentCore CLI 1.0.0 /
 botocore 1.43.x, against a PingFederate 13.1 OAuth server.
-**Consequence for this POC:** the outbound exchange is performed directly by the
-agent code (`agent/main.py`), not by AgentCore Identity. See SPEC.md for the
-current flow.
+**Consequence for this POC:** this limitation killed the "no client
+credentials at all" design; the API findings below remain valid. The
+implemented design has since moved to KMS-signed `private_key_jwt` client
+auth with a PingFederate-issued actor token, brokered by AgentCore Identity —
+see [current-design.md](current-design.md) for the current flow.
 
 ## What we wanted
 

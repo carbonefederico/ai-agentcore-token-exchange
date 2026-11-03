@@ -1,5 +1,13 @@
 # AgentCore Secretless Identity Federation — POC (PingFederate Edition)
 
+> **⚠️ Superseded.** This spec describes the original (2026-10-28) design.
+> The project was redesigned twice since; what the repo actually deploys
+> today — including the KMS `private_key_jwt` variant that started here as
+> the documented "fallback" — is documented in
+> **[docs/current-design.md](docs/current-design.md)**. The API findings in
+> [docs/agentcore-obo-limitation.md](docs/agentcore-obo-limitation.md)
+> remain valid.
+
 ## Objective
 
 Build a proof of concept demonstrating secretless authentication and OAuth token

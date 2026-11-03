@@ -3,57 +3,66 @@
 Declarative PingFederate configuration imported at admin startup by the
 Ping Identity image (bulk config). Full-state: every admin restart re-imposes
 it. Do not hand-edit configuration in the admin console — changes are lost on
-redeploy. See the sibling perf project's `docs/pingfederate-configuration.md`
-for the format in depth.
+redeploy. The overall design is documented in
+[docs/current-design.md](../../docs/current-design.md).
 
 ## Objects provisioned
 
 | Object | ID | Purpose |
 |---|---|---|
-| IdP adapter (Simple) | `DemoFormAdapter` | Username/password form for the CLI's Authorization Code + PKCE login (demo credentials from `DEMO_USERNAME`/`DEMO_PASSWORD`) |
-| JWT token processor | `AgentCorePingFederateUserProcessor` | Validates PingFederate-issued user tokens (the exchange subject token); issuer = `OUTPUT_ISSUER`, JWKS = `OUTPUT_JWKS_URL` |
-| JWT token processor | `AgentCoreAwsStsTokenProcessor` | Validates AWS STS identity JWTs (the actor token): issuer = the account's STS issuer, JWKS = AWS-published, audience = the PF token endpoint |
-| Access token managers | `AgentCoreDelegatedATM`, `AgentCoreUserATM` | JWT output tokens, RS256, `at+jwt`; delegated ATM's `aud` comes from the requested `resource` (RFC 8707), user ATM's `aud` is fixed to `RUNTIME_API_AUDIENCE` |
-| Token Exchange Processor Policy | `AgentCoreTokenExchangePolicy` | `actorTokenRequired: true`; subject type `urn:ietf:params:oauth:token-type:jwt` via the PF user processor; actor type `urn:...:jwt` via the AWS processor; contract: `subject` ← subject `sub`, `subject_act` ← actor `sub` |
-| Access token mapping | `AgentCoreTokenExchangeMapping` | Builds the delegated token: `sub` ← TEPP subject; `aud` ← `context.OAuthResources`; `act` ← `{ "sub": <actor sub> }` |
-| Access token mapping | `AgentCoreAuthCodeMapping` | User tokens: `sub` ← adapter `username` |
-| OAuth client | `${PF_CLI_CLIENT_ID}` | **Public** client (`clientAuth: NONE`), `AUTHORIZATION_CODE` + `requireProofKeyForCodeExchange: true`, redirect = loopback `PF_CLI_REDIRECT_URI` |
-| OAuth client | `${PF_AGENT_CLIENT_ID}` | The agent, registered with **no secret**: `clientAuth: PRIVATE_KEY_JWT`, JWKS URL = the AWS STS JWKS. `client_id` must equal the agent's IAM role ARN (the JWT's `sub`); grant `TOKEN_EXCHANGE`; exclusive scope `demo:read` |
+| Password credential validator | `AgentCoreDemoUsersPCV` | Local demo user (`demouser`) |
+| IdP adapter | `AgentCoreLoginAdapter` | HTML form backed by the PCV; the default authn tree maps `username` → `AgentCoreApc.subject` |
+| Authentication policy contract | `AgentCoreApc` | Carries `subject` from the login tree into the token mappings |
+| JWT token processor | `PfUserTokenProcessor` | Validates PingFederate-issued **user** tokens (the exchange subject token); issuer/JWKS = this PF engine, audience = the AgentCore invoke audience |
+| JWT token processor | `PfClientTokenProcessor` | Validates PingFederate-issued **actor** tokens (issuer = this PF engine, no audience requirement); exposes `client_id` as an extended attribute |
+| Access token managers | `AgentCoreDelegatedATM`, `AgentCoreWebATM` | JWT output tokens, RS256, `at+jwt`, 15 min. Delegated ATM's `aud` comes from the requested `resource` (RFC 8707); web ATM's `aud` is fixed to the invoke audience |
+| Token Exchange Processor Policy | `AgentCoreTokenExchangePolicy` | `actorTokenRequired: true`; two mappings — actor as `jwt` and as `access_token` (AgentCore Identity's M2M leg sends the latter) — both validated by `PfClientTokenProcessor`; contract: `subject` ← subject `sub`, `subject_act` ← actor `client_id` |
+| Access token mapping | `AgentCoreTokenExchangeMapping` | Builds the delegated token: `sub` ← TEPP subject; `aud` ← `context.OAuthResources`; `act` ← `{ "sub": <actor client_id> }` |
+| Access token mapping | `authz_req\|apc.AgentCoreApc\|AgentCoreWebATM` | User tokens from the auth-code leg: `sub` ← APC `subject` |
+| OIDC policy | `AgentCoreOidcPolicy` | id_token policy for the login leg (5 min, `sub` ← `USER_KEY`) |
+| OAuth client | `agentcore-demo-cli` | **Confidential** client (`clientAuth: SECRET`), `AUTHORIZATION_CODE` + `REFRESH_TOKEN`, redirect `http://127.0.0.1:8400/callback` |
+| OAuth client | the runtime role ARN (literal in `data.json.subst`) | The agent: `clientAuth: PRIVATE_KEY_JWT`, **inline JWKS** = the KMS key's public key (kid `agentcore-pf-poc-1`, RS256); grants `TOKEN_EXCHANGE` + `CLIENT_CREDENTIALS` (the latter feeds the M2M actor leg); restricted scope `demo:read` |
 
-## Required substitution variables
+## Substitution variables
 
-`DEMO_USERNAME`, `DEMO_PASSWORD`, `PF_ADMIN_PUBLIC_HOSTNAME` (image-provided),
-`AWS_STS_ISSUER`, `AWS_STS_JWKS_URL`, `PF_TOKEN_ENDPOINT_AUDIENCE`,
-`OUTPUT_ISSUER`, `OUTPUT_JWKS_URL`, `RUNTIME_API_AUDIENCE`,
-`DEMO_RESOURCE_URI`, `PF_CLI_CLIENT_ID`, `PF_CLI_REDIRECT_URI`,
-`PF_AGENT_CLIENT_ID`, `PING_IDENTITY_PASSWORD`.
-All are supplied by `scripts/deploy.sh` from `.env`.
+`PF_ADMIN_PUBLIC_HOSTNAME` and `PF_ENGINE_PUBLIC_HOSTNAME`
+(image-provided). Everything else is a literal in `data.json.subst` — the
+variables from earlier revisions (`DEMO_USERNAME`, `AWS_STS_*`, `PF_CLI_*`,
+`PF_AGENT_CLIENT_ID`, …) are gone.
 
 ## Files
 
-- `instance/bulk-config/data.json.subst` — the configuration above.
+- `instance/bulk-config/data.json.subst` — the configuration above. The
+  runtime SSL server keypair is embedded inline as `fileData` (base64); no
+  key material file lives in the profile.
+- `hooks/07-apply-server-profile.sh` — profile override of the image's stock
+  hook: merges `instance/` and registers the config-store XML into
+  `data-default.zip` (PF prunes config-store files absent from the zip at
+  every boot).
+- `instance/server/default/data/config-store/oauth-credentials-validator.xml`
+  — client-assertion validator relaxations for the agent client
+  (`issuerMustBeEqualToClientId=false`, `jwtClientAuthenticationExpectedType=JWT`),
+  registered by the hook.
 
 ## Notes
 
-- **No TLS key material anywhere.** The engines serve 9031 over their
-  default certificate; nothing validates it — external TLS terminates on
-  the ingress (nginx-public class, cert-manager Let's Encrypt certificate,
-  templated by the chart), and nginx does not verify the upstream cert.
-  Both the self-referential JWKS fetch (the
-  `AgentCorePingFederateUserProcessor` reading `OUTPUT_JWKS_URL`) and
-  AgentCore's authorizer see only the ingress certificate, which the PF
-  JVM trusts by default.
+- **No TLS key material managed by operators.** The engines serve 9031 over
+  the inline self-signed certificate (nothing validates it directly);
+  external TLS terminates on the ingress (nginx-public class, cert-manager
+  Let's Encrypt certificate), and nginx does not verify the upstream cert.
+  Both the self-referential JWKS fetch (the `PfUserTokenProcessor` and
+  `PfClientTokenProcessor` reading the engine's own JWKS) and AgentCore's
+  authorizer see only the ingress certificate, which the PF JVM trusts by
+  default.
 - The engine pods must be able to resolve and reach the public hostname
-  `PF_PUBLIC_HOSTNAME` from inside the cluster (hairpin through the load
-  balancer) for the self-JWKS fetch to work. Verify once with
-  `scripts/smoke.sh` — it exercises exactly this fetch path.
-- The AWS STS JWKS needs no truststore changes (publicly trusted cert).
+  `PF_ENGINE_PUBLIC_HOSTNAME` from inside the cluster (hairpin through the
+  load balancer) for the self-JWKS fetch to work.
 - Replay prevention is **off** on the agent client: AgentCore Identity may
-  cache its STS identity JWT across exchanges, and a repeated `jti` would be
-  rejected if enforcement were enabled.
-- The `issuerMustBeEqualToClientId` global setting: with the agent client's
-  `client_id` registered as the IAM role ARN, the assertion's `sub` matches
-  the client ID; if PingFederate additionally requires `iss == client_id`,
-  the platform team must flip the configStore flag
-  (`oauth-credentials-validator/issuerMustBeEqualToClientId = false`) — a
-  documented, global change requiring sign-off. See SPEC.md Phase 0.
+  cache its KMS-signed client assertion across exchanges, and a repeated
+  `jti` would be rejected if enforcement were enabled.
+- The config-store relaxations live in
+  `instance/server/default/data/config-store/oauth-credentials-validator.xml`
+  and are registered into `data-default.zip` by the profile hook. If PF
+  boots without them, the agent client's `private_key_jwt` validation
+  reverts to strict `typ`/`iss` checks and the exchange fails on
+  `invalid_client`.

@@ -1,6 +1,6 @@
 """Shared helpers for the Phase 0 PingFederate validation scripts.
 
-Used by pf_phase0_preflight.py and pf_phase0_exchange.py.
+Used by pf_phase0_preflight.py and cli/demo_cli.py.
 
 Security: tokens stay in memory during the flow; the CLI's token cache
 (tokens.cache) holds them on disk locally (git-ignored) so demo runs
@@ -16,7 +16,6 @@ import urllib.parse
 from pathlib import Path
 
 try:
-    import boto3
     import requests
 except ImportError as exc:  # pragma: no cover
     sys.exit(f"Missing dependency ({exc}). Run: pip install -r requirements.txt")
@@ -250,65 +249,3 @@ def _browser_login_uncached(config):
     _save_cached_token(body)
     return access_token
 
-
-def get_aws_identity_jwt(config):
-    """Call sts:GetWebIdentityToken; return the AWS IAM identity JWT.
-
-    Audience is the PingFederate token endpoint, matching what AgentCore
-    Identity sends. Requires regional STS (the global endpoint does not
-    expose this API) and outbound web identity federation enabled.
-    """
-    region = optional(config, "AWS_REGION", "us-east-1")
-    audience = f"{build_urls(config)['runtime']}/as/token.oauth2"
-    role_arn = require(config, "PF_AGENT_ROLE_ARN")
-    algorithm = optional(config, "STS_SIGNING_ALG", "RS256")
-    if algorithm not in ("RS256", "ES384"):
-        sys.exit(f"STS_SIGNING_ALG must be RS256 or ES384, got {algorithm!r}.")
-
-    sts = boto3.client("sts", region_name=region)
-    try:
-        resp = sts.get_web_identity_token(
-            Audience=[audience],
-            SigningAlgorithm=algorithm,
-            DurationSeconds=300,
-        )
-    except Exception as exc:  # noqa: BLE001 — surface the AWS error verbatim
-        sys.exit(
-            f"sts:GetWebIdentityToken failed ({exc}).\n"
-            "Check: outbound web identity federation enabled "
-            "(aws iam enable-outbound-web-identity-federation), the caller "
-            "role has sts:GetWebIdentityToken, and you use a regional endpoint."
-        )
-
-    jwt_token = resp.get("WebIdentityToken") or resp.get("IdentityToken")
-    if not jwt_token:
-        sys.exit("STS response contained no web identity token.")
-    _ = role_arn  # validated in the exchange script; here we only need the JWT
-    return jwt_token
-
-
-def token_exchange(config, user_token, aws_jwt):
-    """POST the RFC 8693 exchange to PingFederate; return (status, body).
-
-    Secretless: no client secret, and the AWS JWT doubles as the RFC 7523
-    client assertion and the RFC 8693 actor token.
-    """
-    urls = build_urls(config)
-    role_arn = require(config, "PF_AGENT_ROLE_ARN")
-    scope = optional(config, "PF_EXCHANGE_SCOPE", "demo:read")
-
-    return requests.post(
-        f"{urls['runtime']}/as/token.oauth2",
-        data={
-            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-            "client_id": role_arn,
-            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-            "client_assertion": aws_jwt,
-            "subject_token": user_token,
-            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
-            "actor_token": aws_jwt,
-            "actor_token_type": "urn:ietf:params:oauth:token-type:jwt",
-            "scope": scope,
-        },
-        timeout=30,
-    )

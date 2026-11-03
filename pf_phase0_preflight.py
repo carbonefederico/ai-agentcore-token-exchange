@@ -38,13 +38,12 @@ def main():
     config = load_config()
     urls = build_urls(config)
     client_id = optional(config, "PF_CLI_CLIENT_ID")
-    role_arn = optional(config, "PF_AGENT_ROLE_ARN")
     admin = requests.Session()
     token = optional(config, "PF_ADMIN_TOKEN")
     if token:
         admin.headers["Authorization"] = f"Bearer {token}"
 
-    print("PingFederate Phase 0 preflight\n")
+    print("PingFederate preflight\n")
 
     print("Runtime endpoints (no auth):")
     ok = True
@@ -58,43 +57,23 @@ def main():
 
     if not token:
         print("\nAdmin checks skipped: PF_ADMIN_TOKEN not set in config.env.")
-        print("The exchange test (pf_phase0_exchange.py) does not need it.")
         return 0
 
     print("\nAdmin API (read-only):")
     api = f"{urls['admin']}/pf-admin-api/v1"
     all_ok = True
     all_ok &= check(admin, f"{api}/oauth/clients/{client_id}",
-                    f"CLI public client '{client_id}'", expected=client_id)
-    all_ok &= check(admin, f"{api}/oauth/clients/{role_arn}",
-                    f"agent client (client_id = IAM role ARN)", expected=role_arn)
-    all_ok &= check(admin, f"{api}/oauth/clients/{role_arn}",
-                    "agent client has no secret / PRIVATE_KEY_JWT", expected="PRIVATE_KEY_JWT")
+                    f"CLI client '{client_id}'", expected=client_id)
     all_ok &= check(admin, f"{api}/oauth/tokenExchange/processor/policies",
                     "token exchange processor policy exists", expected="actorTokenRequired")
     all_ok &= check(admin, f"{api}/oauth/credentials/validator",
                     "client-assertion validator config (issuerMustBeEqualToClientId)")
 
-    # AWS-side preflight (needs local AWS credentials, read-only).
-    print("\nAWS outbound identity federation (local credentials):")
-    try:
-        import boto3
-
-        iam = boto3.client("iam")
-        info = iam.get_outbound_web_identity_federation_info()
-        issuer = info.get("IssuerUrl", "")
-        print(f"  PASS  outbound web identity federation enabled; issuer: {issuer}")
-        all_ok &= bool(issuer)
-    except Exception as exc:  # noqa: BLE001 — diagnostic only, never fatal here
-        print(f"  WARN  cannot read federation info ({exc.__class__.__name__}: {exc})")
-        all_ok = False
-
     print()
     if all_ok:
-        print("RESULT: PASS — run pf_phase0_exchange.py")
+        print("RESULT: PASS")
         return 0
-    print("RESULT: INCOMPLETE — resolve the WARN items with the platform team,")
-    print("then run pf_phase0_exchange.py.")
+    print("RESULT: INCOMPLETE — resolve the WARN items with the platform team.")
     return 1
 
 
