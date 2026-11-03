@@ -15,7 +15,7 @@ outbound flow, so the agent code holds no OAuth logic and no credentials.
 - What gets built: PingFederate on k8s (declarative server profile), an
   agent on AgentCore Runtime, a demo CLI — and the identity wiring between
   them (KMS key, credential provider, IAM grants).
-- The end state: `cli/demo_cli.py` logs a user in, invokes the agent, and
+- The end state: `tests/demo_cli.py` logs a user in, invokes the agent, and
   prints the delegated token's claims showing user + agent identity.
 - Full architecture: **[docs/architecture.md](docs/architecture.md)** —
   flow, components, token shape, and design rationale.
@@ -28,9 +28,9 @@ docs/agentcore-obo-limitation.md      Why credential-free client auth is impossi
 agent/main.py                         The hosted agent (LLM stub disabled)
 agentcore/agentcore.json              AgentCore CLI runtime config
 agentcore/cdk/                        CDK app: IAM grants (KMS sign, token vault)
-cli/demo_cli.py                       The demo CLI client
-scripts/pf_common.py                  Shared login helpers (PKCE flow, token cache)
-scripts/pf_preflight.py               Read-only PingFederate preflight checks
+tests/demo_cli.py                     The smoke test: login → invoke → claims
+tests/pf_common.py                    Shared login helpers (PKCE flow, token cache)
+tests/pf_preflight.py                 Read-only PingFederate preflight checks
 server-profiles/pingfederate-agentcore/  Declarative PF config (bulk config)
 helm/pingfederate/values.yaml         Overrides for Ping's official chart
 scripts/                              deploy / verify / validate / uninstall
@@ -93,8 +93,8 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp config.example.env config.env        # PF_BASE_URL, AGENT_RUNTIME_NAME, etc.
 
-python3 scripts/pf_preflight.py         # optional: endpoints + PF config checks
-python3 cli/demo_cli.py                 # login → invoke agent → claims
+python3 tests/pf_preflight.py           # optional: endpoints + PF config checks
+python3 tests/demo_cli.py               # login → invoke agent → claims
 ```
 
 Expected CLI output:

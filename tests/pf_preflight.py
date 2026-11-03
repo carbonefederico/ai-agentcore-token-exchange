@@ -5,7 +5,7 @@ Read-only checks (GET only). Run this before attempting the demo flow.
 Uses PF_ADMIN_TOKEN (bearer) against /pf-admin-api/v1; skips the admin
 checks with a warning if no token is configured.
 
-Usage: python3 scripts/pf_preflight.py
+Usage: python3 tests/pf_preflight.py
 """
 
 import sys

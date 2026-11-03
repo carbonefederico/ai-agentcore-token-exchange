@@ -1,6 +1,6 @@
-"""Shared helpers for the PingFederate demo tooling.
+"""Shared helpers for the PingFederate smoke test.
 
-Used by scripts/pf_preflight.py and cli/demo_cli.py.
+Used by tests/pf_preflight.py and tests/demo_cli.py.
 
 Security: tokens stay in memory during the flow; the CLI's token cache
 (tokens.cache) holds them on disk locally (git-ignored) so demo runs

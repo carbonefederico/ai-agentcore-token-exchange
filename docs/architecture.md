@@ -29,7 +29,7 @@ never touches OAuth.
 ```
 ┌──────────────┐   Authorization Code + PKCE     ┌─────────────────────┐
 │ CLI client   │ ───────────────────────────────▶ │ PingFederate (k8s)  │
-│ cli/         │   confidential client            │ server-profiles/    │
+│ (smoke test) │   confidential client            │ server-profiles/    │
 └──────┬───────┘                                  └─────────▲───────────┘
        │ Bearer user JWT                                    │ 7,8: RFC 8693
        ▼ 2,3: validate + forward                            │ exchange
@@ -45,7 +45,7 @@ never touches OAuth.
 └───────────────────────┘                            └────────────────┘
 ```
 
-1. **CLI client** (`cli/demo_cli.py`) logs the user in at PingFederate with
+1. **CLI client** (`tests/demo_cli.py`) logs the user in at PingFederate with
    Authorization Code (confidential client `agentcore-demo-cli`, secret from
    the server profile; PKCE sent). The user token is cached in
    `tokens.cache` between runs.
@@ -147,7 +147,7 @@ the object-by-object table. The load-bearing pieces:
 
 See the [README](../README.md) for prerequisites, deployment steps
 (PingFederate via Helm, the agent via the AgentCore CLI) and the demo run.
-`scripts/pf_preflight.py` checks the PingFederate side before attempting the
+`tests/pf_preflight.py` checks the PingFederate side before attempting the
 flow;
 `aws/teardown.sh` and `scripts/uninstall.sh` remove everything.
 
