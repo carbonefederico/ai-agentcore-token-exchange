@@ -15,6 +15,14 @@ import sys
 import urllib.parse
 from pathlib import Path
 
+# Constants of the deployment this repo provisions (see
+# server-profiles/pingfederate-agentcore/): the demo CLI client and its
+# secret are registered there, and the redirect loopback port with it.
+CLI_CLIENT_ID = "agentcore-demo-cli"
+CLI_CLIENT_SECRET = "cli-demo-secret"
+REDIRECT_PORT = 8400
+LOGIN_SCOPE = "openid demo:read"
+
 try:
     import requests
 except ImportError as exc:  # pragma: no cover
@@ -26,9 +34,9 @@ class PreflightError(Exception):
 
 
 def load_config(path=None):
-    """Parse KEY=VALUE lines from config.env (repo root) into a dict."""
+    """Parse KEY=VALUE lines from tests/config.env into a dict."""
     if path is None:
-        path = Path(__file__).resolve().parents[1] / "config.env"
+        path = Path(__file__).resolve().parent / "config.env"
     config = {}
     try:
         with open(path, encoding="utf-8") as handle:
@@ -39,7 +47,7 @@ def load_config(path=None):
                 key, _, value = line.partition("=")
                 config[key.strip()] = value.strip()
     except FileNotFoundError:
-        sys.exit(f"{path} not found. Copy config.example.env to config.env and fill it in.")
+        sys.exit(f"{path} not found. Copy tests/config.example.env to tests/config.env and fill it in.")
     return config
 
 
@@ -47,9 +55,9 @@ def require(config, key):
     """Return config[key], exiting if missing or still a placeholder."""
     value = config.get(key, "").strip()
     if not value:
-        sys.exit(f"{key} is required in config.env.")
+        sys.exit(f"{key} is required in tests/config.env.")
     if "example.com" in value or value.startswith("arn:aws:iam::123456789012"):
-        sys.exit(f"{key} still has its placeholder value: {value}. Edit config.env.")
+        sys.exit(f"{key} still has its placeholder value: {value}. Edit tests/config.env.")
     return value
 
 
@@ -107,7 +115,7 @@ def browser_login(config):
 
 # The cache lives in the repo root next to config.env, regardless of where
 # this module is imported from.
-CACHE_FILE = Path(__file__).resolve().parents[1] / "tokens.cache"
+CACHE_FILE = Path(__file__).resolve().parent / "tokens.cache"
 
 
 def _load_cached_token(config):
@@ -141,8 +149,8 @@ def _try_refresh(config, cached):
     if not refresh_token:
         return None
     urls = build_urls(config)
-    client_id = require(config, "PF_CLI_CLIENT_ID")
-    secret = optional(config, "PF_CLI_CLIENT_SECRET", "")
+    client_id = CLI_CLIENT_ID
+    secret = CLI_CLIENT_SECRET
     try:
         resp = requests.post(
             f"{urls['runtime']}/as/token.oauth2",
@@ -174,9 +182,9 @@ def _browser_login_uncached(config):
     import webbrowser
 
     urls = build_urls(config)
-    client_id = require(config, "PF_CLI_CLIENT_ID")
-    port = int(optional(config, "PF_REDIRECT_PORT", "8400"))
-    scope = optional(config, "PF_DEMO_SCOPE", "openid demo:read")
+    client_id = CLI_CLIENT_ID
+    port = REDIRECT_PORT
+    scope = LOGIN_SCOPE
     redirect_uri = f"http://127.0.0.1:{port}/callback"
 
     # RFC 7636 PKCE verifier/challenge (S256).
@@ -241,7 +249,7 @@ def _browser_login_uncached(config):
             "client_id": client_id,
             "code_verifier": verifier,
         },
-        auth=(client_id, optional(config, "PF_CLI_CLIENT_SECRET", "")) if optional(config, "PF_CLI_CLIENT_SECRET", "") else None,
+        auth=(client_id, CLI_CLIENT_SECRET),
         timeout=30,
     )
     if token_resp.status_code != 200:

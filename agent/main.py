@@ -7,9 +7,10 @@ Flow (see docs/architecture.md):
      (BedrockAgentCoreContext.get_workload_access_token()).
   3. The agent calls GetResourceOauth2Token with
      oauth2Flow=ON_BEHALF_OF_TOKEN_EXCHANGE; AgentCore Identity performs the
-     full secretless exchange (KMS-signed private_key_jwt client assertion;
-     PF-issued client_credentials token as actor token; inbound user JWT as
-     subject token).
+     full secretless exchange in one PingFederate call: KMS-signed
+     private_key_jwt client assertion, the AWS IAM identity JWT
+     (sts:GetWebIdentityToken) as actor token, and the inbound user JWT as
+     subject token.
   4. The agent decodes the exchanged token (signature NOT verified — display
      only) and returns its claims.
 
@@ -80,7 +81,7 @@ def invoke(payload, context):
     return {
         "exchange": "SUCCESS",
         "clientAuthentication": "KMS-signed private_key_jwt (no client secret)",
-        "actorToken": "PingFederate-issued client_credentials token (M2M leg)",
+        "actorToken": "AWS IAM identity JWT (sts:GetWebIdentityToken)",
         "claims": claims,
     }
 

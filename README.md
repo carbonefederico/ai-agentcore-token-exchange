@@ -34,8 +34,8 @@ tests/pf_preflight.py                 Read-only PingFederate preflight checks
 server-profiles/pingfederate-agentcore/  Declarative PF config (bulk config)
 helm/pingfederate/values.yaml         Overrides for Ping's official chart
 scripts/                              deploy / verify / validate / uninstall
-aws/teardown.sh                       AgentCore stack + provider removal
-config.example.env                    CLI/preflight config template → copy to config.env
+scripts/teardown-aws.sh               AgentCore stack + provider removal
+tests/config.example.env              Smoke-test config template → copy to tests/config.env
 .env.example                          Helm deployment template → copy to .env
 requirements.txt                      CLI/preflight dependencies (requests, boto3)
 ```
@@ -69,8 +69,9 @@ confidential CLI client, and the agent client (KMS public key,
 
 ## Step 2 — AWS identity setup (out-of-band)
 
-The KMS key and the `pingfederate-obo-poc2` credential provider
-(CustomOauth2, `private_key_jwt` + M2M actor leg) are created out-of-band;
+The KMS key and the `pingfederate-obo-poc` credential provider
+(CustomOauth2, `private_key_jwt` client auth, `AWS_IAM_ID_TOKEN_JWT` actor
+  token) are created out-of-band;
 `agentcore/cdk/lib/cdk-stack.ts` documents the IAM shape.
 
 ## Step 3 — Deploy the agent (AgentCore CLI)
@@ -91,7 +92,7 @@ authorizer against PingFederate's OIDC discovery endpoint.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp config.example.env config.env        # PF_BASE_URL, AGENT_RUNTIME_NAME, etc.
+cp tests/config.example.env tests/config.env   # PF_BASE_URL, AGENT_RUNTIME_NAME, etc.
 
 python3 tests/pf_preflight.py           # optional: endpoints + PF config checks
 python3 tests/demo_cli.py               # login → invoke agent → claims
@@ -124,7 +125,7 @@ code shows how the exchanged token would be used downstream by a real agent.
 ## Teardown
 
 ```bash
-./aws/teardown.sh        # runtime (agentcore CLI) + credential provider;
+./scripts/teardown-aws.sh  # runtime (agentcore CLI) + credential provider;
                          # the KMS key is out-of-band and not removed
 ./scripts/uninstall.sh   # PingFederate release
 ```
@@ -134,7 +135,7 @@ code shows how the exchanged token would be used downstream by a real agent.
 No client secret is stored for the agent: it authenticates with a KMS-signed
 assertion whose private key never leaves AWS KMS, and the PF client holds
 only the public key. The CLI is a confidential demo client (secret lives in
-the server profile). Tokens are cached locally in `tokens.cache`
+the server profile). Tokens are cached locally in `tests/tokens.cache`
 (git-ignored); scripts print decoded claims, never raw tokens. `.env` and
-`config.env` are git-ignored. The PingFederate Admin API is used read-only
+`tests/config.env` are git-ignored. The PingFederate Admin API is used read-only
 (preflight); configuration flows exclusively from the server profile.

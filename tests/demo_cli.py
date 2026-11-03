@@ -12,18 +12,23 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import boto3
 import requests
 
 from pf_common import browser_login, load_config, require, build_urls
 
+# Same AWS target the AgentCore CLI deploys to — single source of truth.
+TARGETS = json.loads(
+    (Path(__file__).resolve().parents[1] / "agentcore" / "aws-targets.json").read_text()
+)[0]
+
 
 def main():
     config = load_config()
-    region = config.get("AWS_REGION", "us-east-1").strip() or "us-east-1"
+    region = TARGETS["region"]
+    account = TARGETS["account"]
     runtime_name = config.get("AGENT_RUNTIME_NAME", "").strip()
     if not runtime_name:
-        sys.exit("AGENT_RUNTIME_NAME is required in config.env (or use .env values).")
+        sys.exit("AGENT_RUNTIME_NAME is required in tests/config.env.")
     scope = config.get("PF_EXCHANGE_SCOPE", "demo:read").strip() or "demo:read"
 
     # 1. User identity.
@@ -33,9 +38,6 @@ def main():
     # 2. Resolve the runtime endpoint. AGENT_RUNTIME_NAME holds the runtime
     #    ID as reported by `agentcore status` (e.g.
     #    tokenexchangeagent_default_exchange_agent-AbCdEfGhIp).
-    account = config.get("AWS_ACCOUNT_ID", "").strip()
-    if not account:
-        account = boto3.client("sts", region_name=region).get_caller_identity()["Account"]
     runtime_id = runtime_name
     runtime_arn = f"arn:aws:bedrock-agentcore:{region}:{account}:runtime/{runtime_id}"
     runtime_url = (

@@ -31,24 +31,24 @@ never touches OAuth.
 │ CLI client   │ ───────────────────────────────▶ │ PingFederate (k8s)  │
 │ (smoke test) │   confidential client            │ server-profiles/    │
 └──────┬───────┘                                  └─────────▲───────────┘
-       │ Bearer user JWT                                    │ 7,8: RFC 8693
+       │ Bearer user JWT                                    │ 5: RFC 8693
        ▼ 2,3: validate + forward                            │ exchange
 ┌───────────────────────┐                          ┌─────────┴───────────┐
 │ AgentCore Runtime     │    4: GetResourceOauth2  │ AgentCore Identity  │
-│ custom JWT authorizer │ ───────────────────────▶ │ KMS-signed client   │
-└───────────────────────┘                          │ assertion + M2M leg │
-     │ 5,6: workload token                         └─────────┬───────────┘
-     ▼                                                        │ kms:Sign
-┌───────────────────────┐                                     ▼
-│ Hosted agent          │                            ┌────────────────┐
-│ agent/main.py         │                            │ AWS KMS        │
-└───────────────────────┘                            └────────────────┘
+│ custom JWT authorizer │ ───────────────────────▶ │ KMS assertion +     │
+└───────────────────────┘                          │ AWS JWT actor token │
+     │ workload token                              └─────┬────────┬──────┘
+     ▼                                            kms:Sign │        │ sts:GetWebIdentityToken
+┌───────────────────────┐                                  ▼        ▼
+│ Hosted agent          │                          ┌────────┐ ┌──────────────┐
+│ agent/main.py         │                          │ AWS KMS│ │ AWS STS      │
+└───────────────────────┘                          └────────┘ └──────────────┘
 ```
 
 1. **CLI client** (`tests/demo_cli.py`) logs the user in at PingFederate with
    Authorization Code (confidential client `agentcore-demo-cli`, secret from
    the server profile; PKCE sent). The user token is cached in
-   `tokens.cache` between runs.
+   `tests/tokens.cache` between runs.
 2. **AgentCore Runtime** validates the inbound JWT with its custom authorizer
    (PingFederate OIDC discovery, audience = the invoke audience) and
    forwards the `Authorization` header to the agent.
@@ -58,16 +58,18 @@ never touches OAuth.
    decoded claims. LLM/tool reference code ships commented out.
 4. **AgentCore Identity** is the OAuth client for the whole outbound leg:
    - signs a `private_key_jwt` client assertion with the customer-managed
-     **KMS key** (`kms:Sign`; the private key never leaves AWS) and obtains
-     a `client_credentials` token from PingFederate (the M2M actor leg);
-   - runs the **RFC 8693 exchange**: subject = the inbound user JWT, actor =
-     that PF-issued `client_credentials` token, authenticated by the
-     KMS-signed assertion.
+     **KMS key** (`kms:Sign`; the private key never leaves AWS);
+   - obtains the **AWS IAM identity JWT** from
+     `sts:GetWebIdentityToken` (audience = the PF token endpoint, ≤ 5 min);
+   - runs the **RFC 8693 exchange in a single PingFederate call**: subject =
+     the inbound user JWT, actor = the AWS IAM identity JWT, client
+     authentication = the KMS-signed assertion.
 5. **PingFederate** validates all three inputs and issues the delegated
    token.
 
 The agent never calls STS, never signs anything, and never sees a client
-secret. Signing material lives only in AWS KMS.
+secret. Signing material lives in AWS KMS (client assertion) and AWS STS
+(actor token).
 
 ## The delegated token
 
@@ -113,11 +115,39 @@ the object-by-object table. The load-bearing pieces:
   the AgentCore CLI through the CDK app in `agentcore/cdk/`.
 - **IAM grants** (in `cdk-stack.ts`): workload access tokens,
   `GetResourceOauth2Token` on the provider, Secrets Manager read of the
-  provider secret, and `kms:Sign`/`kms:DescribeKey` on the KMS key.
+  provider secret, `kms:Sign`/`kms:DescribeKey` on the KMS key, and
+  `sts:GetWebIdentityToken` (audience-conditioned) for the actor token.
 - **Out-of-band setup** (not scripted): the KMS key and the
-  `pingfederate-obo-poc2` credential provider (CustomOauth2,
-  `private_key_jwt` + M2M actor leg). The CDK comments document the IAM
-  shape.
+  `pingfederate-obo-poc` credential provider (CustomOauth2,
+  `private_key_jwt` client auth + `AWS_IAM_ID_TOKEN_JWT` actor token
+  content). The provider combines both settings:
+
+  ```json
+  {
+    "name": "pingfederate-obo-poc",
+    "credentialProviderVendor": "CustomOauth2",
+    "oauth2ProviderConfigInput": {
+      "customOauth2ProviderConfig": {
+        "oauthDiscovery": {
+          "discoveryUrl": "https://<pf-host>/.well-known/openid-configuration"
+        },
+        "clientAuthenticationMethod": "PRIVATE_KEY_JWT",
+        "onBehalfOfTokenExchangeConfig": {
+          "grantType": "TOKEN_EXCHANGE",
+          "tokenExchangeGrantTypeConfig": {
+            "actorTokenContent": "AWS_IAM_ID_TOKEN_JWT"
+          }
+        }
+      }
+    }
+  }
+  ```
+
+  **This combination is the unverified piece of the single-call design** —
+  AWS documents the two settings in separate examples; whether the live
+  service accepts them together is exactly what this variant tests. If the
+  create call rejects it or the exchange fails, the fallback is the proven
+  two-call shape (git history: the M2M-actor design).
 
 ## Design decisions and their rationale
 
@@ -128,13 +158,16 @@ the object-by-object table. The load-bearing pieces:
   see [agentcore-obo-limitation.md](agentcore-obo-limitation.md)), so the
   client authenticates with a KMS-signed `private_key_jwt` assertion: no
   stored secret, and PingFederate holds only the public key.
-- **PF-issued actor token instead of an AWS STS identity JWT.** The STS
-  variant required a global PingFederate config-store relaxation
-  (`issuerMustBeEqualToClientId`) plus per-client `typ` handling and tied
-  the flow to account-level outbound federation. With the PF-issued
-  `client_credentials` token, PingFederate validates the actor as its own
-  token, the agent identity arrives in the standard `client_id` claim, and
-  the exchange depends on nothing outside the cluster and AWS KMS.
+- **AWS-signed actor token (current design).** The actor token in the
+  exchange is the AWS IAM identity JWT itself (`sts:GetWebIdentityToken`):
+  the agent's identity in the delegated token is vouched for by AWS, not by
+  a PingFederate-issued stand-in, and the exchange is a single PF call.
+  PingFederate validates it with a JWT token processor pinned to the
+  account's STS issuer + JWKS, and the TEPP maps `subject_act` ← actor
+  `sub` (the runtime role ARN). An earlier iteration used a PF-issued
+  `client_credentials` token as actor (two PF calls per exchange); it
+  works, but the AWS-signed variant is the one that reflects the actual
+  trust chain.
 - **Confidential CLI client with PKCE.** The demo client is confidential
   (secret in the server profile); PKCE is sent regardless. A public client
   would remove the secret but the demo profile keeps the shape a real
@@ -149,7 +182,7 @@ See the [README](../README.md) for prerequisites, deployment steps
 (PingFederate via Helm, the agent via the AgentCore CLI) and the demo run.
 `tests/pf_preflight.py` checks the PingFederate side before attempting the
 flow;
-`aws/teardown.sh` and `scripts/uninstall.sh` remove everything.
+`scripts/teardown-aws.sh` and `scripts/uninstall.sh` remove everything.
 
 ## References
 

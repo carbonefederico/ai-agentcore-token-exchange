@@ -471,6 +471,69 @@
             "extendedAttributes": []
           }
         },
+    {
+          "id": "AwsStsTokenProcessor",
+          "name": "AWS STS Token Processor",
+          "pluginDescriptorRef": {
+                "id": "com.pingidentity.pf.tokenprocessors.jwt.JwtTokenProcessor"
+          },
+          "configuration": {
+                "fields": [
+                      {
+                            "name": "Require Audience",
+                            "value": "true"
+                      },
+                      {
+                            "name": "Require Expiration Time",
+                            "value": "true"
+                      },
+                      {
+                            "name": "Allowed Clock Skew",
+                            "value": "10"
+                      }
+                ],
+                "tables": [
+                      {
+                            "name": "Allowed Issuers",
+                            "rows": [
+                                  {
+                                        "fields": [
+                                              {
+                                                    "name": "Issuer",
+                                                    "value": "${AWS_STS_ISSUER}"
+                                              },
+                                              {
+                                                    "name": "JWKS URL",
+                                                    "value": "${AWS_STS_JWKS_URL}"
+                                              }
+                                        ]
+                                  }
+                            ]
+                      },
+                      {
+                            "name": "Allowed Audiences",
+                            "rows": [
+                                  {
+                                        "fields": [
+                                              {
+                                                    "name": "Audience",
+                                                    "value": "https://${PF_ENGINE_PUBLIC_HOSTNAME}/as/token.oauth2"
+                                              }
+                                        ]
+                                  }
+                            ]
+                      }
+                ]
+          },
+          "attributeContract": {
+                "coreAttributes": [
+                      {
+                            "name": "sub"
+                      }
+                ],
+                "extendedAttributes": []
+          }
+    },
         {
           "id": "PfClientTokenProcessor",
           "name": "PF Client Token Processor (actor tokens issued by this PF)",
@@ -719,8 +782,8 @@
                         },
                         "actorTokenType": "urn:ietf:params:oauth:token-type:jwt",
                         "actorTokenProcessor": {
-                              "id": "PfClientTokenProcessor",
-                              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfClientTokenProcessor"
+                              "id": "AwsStsTokenProcessor",
+                              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/AwsStsTokenProcessor"
                         },
                         "attributeContractFulfillment": {
                               "subject": {
@@ -733,37 +796,7 @@
                                     "source": {
                                           "type": "ACTOR_TOKEN"
                                     },
-                                    "value": "client_id"
-                              }
-                        },
-                        "issuanceCriteria": {
-                              "conditionalCriteria": []
-                        }
-                  },
-                  {
-                        "attributeSources": [],
-                        "subjectTokenType": "urn:ietf:params:oauth:token-type:jwt",
-                        "subjectTokenProcessor": {
-                              "id": "PfUserTokenProcessor",
-                              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfUserTokenProcessor"
-                        },
-                        "actorTokenType": "urn:ietf:params:oauth:token-type:access_token",
-                        "actorTokenProcessor": {
-                              "id": "PfClientTokenProcessor",
-                              "location": "https://${PF_ADMIN_PUBLIC_HOSTNAME}:9999/pf-admin-api/v1/idp/tokenProcessors/PfClientTokenProcessor"
-                        },
-                        "attributeContractFulfillment": {
-                              "subject": {
-                                    "source": {
-                                          "type": "SUBJECT_TOKEN"
-                                    },
                                     "value": "sub"
-                              },
-                              "subject_act": {
-                                    "source": {
-                                          "type": "ACTOR_TOKEN"
-                                    },
-                                    "value": "client_id"
                               }
                         },
                         "issuanceCriteria": {
@@ -955,8 +988,7 @@
           "name": "AgentCore Exchange Agent (AWS IAM identity JWT)",
           "enabled": true,
           "grantTypes": [
-            "TOKEN_EXCHANGE",
-            "CLIENT_CREDENTIALS"
+            "TOKEN_EXCHANGE"
           ],
           "clientAuth": {
             "type": "PRIVATE_KEY_JWT"

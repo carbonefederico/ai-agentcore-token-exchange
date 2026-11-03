@@ -44,7 +44,7 @@ export class AgentCoreStack extends Stack {
       actions: ['bedrock-agentcore:GetResourceOauth2Token'],
       resources: [
         `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:token-vault/default`,
-        `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:token-vault/default/oauth2credentialprovider/pingfederate-obo-poc2`,
+        `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:token-vault/default/oauth2credentialprovider/pingfederate-obo-poc`,
         `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:workload-identity-directory/default`,
         `arn:aws:bedrock-agentcore:${REGION}:${ACCOUNT}:workload-identity-directory/default/workload-identity/*`,
       ],
@@ -53,7 +53,7 @@ export class AgentCoreStack extends Stack {
       sid: 'CredentialProviderSecret',
       actions: ['secretsmanager:GetSecretValue', 'secretsmanager:DescribeSecret'],
       resources: [
-        `arn:aws:secretsmanager:${REGION}:${ACCOUNT}:secret:bedrock-agentcore-identity!default/oauth2/pingfederate-obo-poc2*`,
+        `arn:aws:secretsmanager:${REGION}:${ACCOUNT}:secret:bedrock-agentcore-identity!default/oauth2/pingfederate-obo-poc*`,
       ],
     }));
     // The provider's private_key_jwt client authentication signs the client
@@ -63,6 +63,22 @@ export class AgentCoreStack extends Stack {
       sid: 'KmsSignClientAssertion',
       actions: ['kms:Sign', 'kms:DescribeKey'],
       resources: ['arn:aws:kms:eu-central-1:574076504146:key/5ef87a2b-677a-40b3-b811-61bb2684c68a'],
+    }));
+    // Single-call design: the RFC 8693 actor token is the AWS IAM identity
+    // JWT. AgentCore Identity obtains it via sts:GetWebIdentityToken with the
+    // PingFederate token endpoint as audience. Resource '*' is required; the
+    // API does not honor the 'self' pseudo-resource in identity policies
+    // (verified 2026-10-30).
+    runtime.addToPolicy(new iam.PolicyStatement({
+      sid: 'StsIdentityToken',
+      actions: ['sts:GetWebIdentityToken'],
+      resources: ['*'],
+      conditions: {
+        StringEquals: {
+          'sts:IdentityTokenAudience': 'https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2',
+        },
+        NumericLessThanEquals: { 'sts:DurationSeconds': 300 },
+      },
     }));
   }
 }

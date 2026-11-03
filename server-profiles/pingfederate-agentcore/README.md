@@ -14,14 +14,14 @@ redeploy. The overall design is documented in
 | IdP adapter | `AgentCoreLoginAdapter` | HTML form backed by the PCV; the default authn tree maps `username` → `AgentCoreApc.subject` |
 | Authentication policy contract | `AgentCoreApc` | Carries `subject` from the login tree into the token mappings |
 | JWT token processor | `PfUserTokenProcessor` | Validates PingFederate-issued **user** tokens (the exchange subject token); issuer/JWKS = this PF engine, audience = the AgentCore invoke audience |
-| JWT token processor | `PfClientTokenProcessor` | Validates PingFederate-issued **actor** tokens (issuer = this PF engine, no audience requirement); exposes `client_id` as an extended attribute |
+| JWT token processor | `AwsStsTokenProcessor` | Validates AWS STS identity JWTs (the exchange **actor** token): issuer = the account's STS issuer, JWKS = AWS-published, audience = the PF token endpoint |
 | Access token managers | `AgentCoreDelegatedATM`, `AgentCoreWebATM` | JWT output tokens, RS256, `at+jwt`, 15 min. Delegated ATM's `aud` comes from the requested `resource` (RFC 8707); web ATM's `aud` is fixed to the invoke audience |
-| Token Exchange Processor Policy | `AgentCoreTokenExchangePolicy` | `actorTokenRequired: true`; two mappings — actor as `jwt` and as `access_token` (AgentCore Identity's M2M leg sends the latter) — both validated by `PfClientTokenProcessor`; contract: `subject` ← subject `sub`, `subject_act` ← actor `client_id` |
+| Token Exchange Processor Policy | `AgentCoreTokenExchangePolicy` | `actorTokenRequired: true`; single mapping — subject as `jwt` (PF user tokens via `PfUserTokenProcessor`), actor as `jwt` (AWS STS identity JWTs via `AwsStsTokenProcessor`); contract: `subject` ← subject `sub`, `subject_act` ← actor `sub` |
 | Access token mapping | `AgentCoreTokenExchangeMapping` | Builds the delegated token: `sub` ← TEPP subject; `aud` ← `context.OAuthResources`; `act` ← `{ "sub": <actor client_id> }` |
 | Access token mapping | `authz_req\|apc.AgentCoreApc\|AgentCoreWebATM` | User tokens from the auth-code leg: `sub` ← APC `subject` |
 | OIDC policy | `AgentCoreOidcPolicy` | id_token policy for the login leg (5 min, `sub` ← `USER_KEY`) |
 | OAuth client | `agentcore-demo-cli` | **Confidential** client (`clientAuth: SECRET`), `AUTHORIZATION_CODE` + `REFRESH_TOKEN`, redirect `http://127.0.0.1:8400/callback` |
-| OAuth client | the runtime role ARN (literal in `data.json.subst`) | The agent: `clientAuth: PRIVATE_KEY_JWT`, **inline JWKS** = the KMS key's public key (kid `agentcore-pf-poc-1`, RS256); grants `TOKEN_EXCHANGE` + `CLIENT_CREDENTIALS` (the latter feeds the M2M actor leg); restricted scope `demo:read` |
+| OAuth client | the runtime role ARN (literal in `data.json.subst`) | The agent: `clientAuth: PRIVATE_KEY_JWT`, **inline JWKS** = the KMS key's public key (kid `agentcore-pf-poc-1`, RS256); grant `TOKEN_EXCHANGE`; restricted scope `demo:read` |
 
 ## Substitution variables
 
@@ -51,7 +51,7 @@ variables from earlier revisions (`DEMO_USERNAME`, `AWS_STS_*`, `PF_CLI_*`,
   external TLS terminates on the ingress (nginx-public class, cert-manager
   Let's Encrypt certificate), and nginx does not verify the upstream cert.
   Both the self-referential JWKS fetch (the `PfUserTokenProcessor` and
-  `PfClientTokenProcessor` reading the engine's own JWKS) and AgentCore's
+  `PfUserTokenProcessor` reading the engine's own JWKS) and AgentCore's
   authorizer see only the ingress certificate, which the PF JVM trusts by
   default.
 - The engine pods must be able to resolve and reach the public hostname

@@ -12,7 +12,13 @@ import sys
 
 import requests
 
-from pf_common import PreflightError, build_urls, load_config, optional
+from pf_common import (
+    CLI_CLIENT_ID,
+    PreflightError,
+    build_urls,
+    load_config,
+    optional,
+)
 
 
 def check(client, url, description, expected=None):
@@ -37,7 +43,7 @@ def check(client, url, description, expected=None):
 def main():
     config = load_config()
     urls = build_urls(config)
-    client_id = optional(config, "PF_CLI_CLIENT_ID")
+    client_id = CLI_CLIENT_ID
     admin = requests.Session()
     token = optional(config, "PF_ADMIN_TOKEN")
     if token:
@@ -66,7 +72,7 @@ def main():
         return 1
 
     if not token:
-        print("\nAdmin checks skipped: PF_ADMIN_TOKEN not set in config.env.")
+        print("\nAdmin checks skipped: PF_ADMIN_TOKEN not set in tests/config.env.")
         return 0
 
     print("\nAdmin API (read-only):")

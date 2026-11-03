@@ -11,7 +11,7 @@ require() { [[ -n "${!1:-}" ]] || { echo "$1 is required (set in .env or environ
 require AWS_REGION
 
 REGION="${AWS_REGION}"
-OAUTH_PROVIDER_NAME="${OAUTH_PROVIDER_NAME:-pingfederate-obo-poc2}"
+OAUTH_PROVIDER_NAME="${OAUTH_PROVIDER_NAME:-pingfederate-obo-poc}"
 
 echo "== Deleting AgentCore stack (agentcore CLI) =="
 if command -v agentcore >/dev/null 2>&1; then
