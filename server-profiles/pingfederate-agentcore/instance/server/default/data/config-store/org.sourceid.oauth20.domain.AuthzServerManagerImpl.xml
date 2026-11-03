@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<c:config xmlns:c="http://www.sourceid.org/2004/05/config">
+  <c:item name="scope.whitelist">[a-zA-Z0-9!#$%&amp;'()*+,-./:;&lt;=>?@\[\]^_`{|}~]+</c:item>
+  <c:item name="MaximumSecondaryClientSecrets">5</c:item>
+  <c:item name="RevokeReplayedRefreshToken" defaultForUpgrade="false">true</c:item>
+  <c:item name="RevokeRefreshTokenForFailedIssuanceCriteria" defaultForUpgrade="true">false</c:item>
+  <!--
+    additional allowed audience values used for different JWT verification scenarios.
+
+    Note of caution: Be careful when adding values to this list as it may have security implications.
+  -->
+  <c:list name="AdditionalAllowedAudiences">
+        <!-- AgentCore Identity signs the private_key_jwt client assertion with
+             aud = the full token endpoint (RFC 7523 §2 audience), while PF's
+             default acceptable set carries only the issuer base URL. -->
+        <c:ListItem>https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/as/token.oauth2</c:ListItem>
+  </c:list>
+  <c:item name="Rfc7523bisCompliantAudienceVerification" defaultForUpgrade="false">true</c:item>
+</c:config>
