@@ -20,7 +20,81 @@ outbound flow, so the agent code holds no OAuth logic and no credentials.
 - Full architecture: **[docs/architecture.md](docs/architecture.md)** —
   flow, components, token shape, and design rationale.
 
-## The exchange, end to end
+## Logical architecture
+
+```mermaid
+flowchart LR
+    subgraph client["Client (tests/demo_cli.py)"]
+        CLI["Demo CLI\n(public user)"]
+    end
+
+    subgraph aws["AWS"]
+        RT["AgentCore Runtime\ninbound token validator\n(custom JWT authorizer)"]
+        AG["Hosted agent\nagent/main.py\n(identity harness)"]
+        ID["AgentCore Identity\noutbound token generator\n+ token vault"]
+        KMS["AWS KMS\nclient-assertion\nsigning key"]
+        STS["AWS STS\nIAM identity JWT\nissuer"]
+    end
+
+    subgraph pf["PingFederate (k8s)"]
+        AUTHN["Login / authn\n(form adapter, authz-code + PKCE)"]
+        TEPP["Token-exchange processor\n(TEPP: validates subject,\nactor and client assertion)"]
+        ATM["Access token managers\n(web + delegated)"]
+    end
+
+    CLI -- "1. authz-code + PKCE (browser)" --> AUTHN
+    AUTHN -- "2. user JWT" --> CLI
+    CLI -- "3. invoke (Bearer user JWT)" --> RT
+    RT -- "4. forward (workload token + user JWT)" --> AG
+    AG -- "5. GetResourceOauth2Token" --> ID
+    ID -- "sign client assertion" --> KMS
+    ID -- "actor token (sts:GetWebIdentityToken)" --> STS
+    ID -- "6. RFC 8693 exchange\n(assertion + subject + actor)" --> TEPP
+    TEPP --> ATM
+    ATM -- "7. delegated token" --> ID
+    ID -- "8. access token" --> AG
+    AG -- "9. claims only" --> CLI
+```
+
+## Exchange sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User (browser)
+    participant C as CLI (tests/demo_cli.py)
+    participant PF as PingFederate
+    participant RT as AgentCore Runtime
+    participant A as Hosted agent
+    participant I as AgentCore Identity
+    participant K as AWS KMS
+    participant S as AWS STS
+
+    U->>C: start demo
+    C->>PF: GET /as/authorization.oauth2 (client auth-code + PKCE)
+    PF->>U: login form
+    U->>PF: credentials (demouser)
+    PF-->>C: redirect with code
+    C->>PF: POST /as/token.oauth2 (code + verifier)
+    PF-->>C: user JWT (subject token)
+    C->>RT: POST /invocations (Authorization: Bearer user JWT)
+    RT->>RT: custom JWT authorizer validates against PF discovery
+    RT->>A: invoke (workload token via SDK context + user JWT)
+    A->>I: GetResourceOauth2Token (OBO exchange, scopes, resources)
+    I->>K: kms:Sign (client assertion, ~90 s)
+    I->>S: sts:GetWebIdentityToken (aud = PF token endpoint, ≤ 5 min)
+    S-->>I: AWS IAM identity JWT (actor token)
+    I->>PF: POST /as/token.oauth2 — RFC 8693 exchange (client assertion, subject = user JWT, actor = AWS JWT)
+    PF->>PF: validate assertion (inline JWKS), subject (own issuer), actor (AWS JWKS); TEPP builds claims
+    PF-->>I: delegated token (sub = user, act.sub = agent role)
+    I-->>A: access token
+    A->>A: decode claims (display only)
+    A-->>RT: claims
+    RT-->>C: claims
+    C->>C: print claims
+```
+
+## The tokens
 
 Four tokens participate in the demo:
 
@@ -86,7 +160,10 @@ issuer/JWKS and maps its `sub` into `act.sub`:
 **4. Delegated token — issued by PingFederate's token-exchange policy**,
 combining all three inputs. This is what a downstream resource server would
 receive: the user who is being acted for (`sub`), the agent that acts
-(`act.sub`, from the AWS JWT), and the scope the policy allows:
+(`act.sub`, from the AWS JWT), the scope the policy allows, and the
+audience (`aud`) — the backend resource the agent declared in the
+`resources` parameter of `GetResourceOauth2Token` (here a hypothetical MCP
+resource; the delegated ATM selects on this URI):
 
 ```json
 {
@@ -95,19 +172,20 @@ receive: the user who is being acted for (`sub`), the agent that acts
   "act": {
     "sub": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B"
   },
+  "aud": "https://demo.example.internal/resource",
   "client_id": "arn:aws:iam::574076504146:role/AgentCore-tokenexchangeag-ApplicationRuntimeExchang-cR6Ap8URe01B",
   "scope": "demo:read",
-  "iat": 1793712831,
-  "exp": 1793713731
+  "iat": 1793714119,
+  "exp": 1793715019
 }
 ```
 
-`aud` is absent from the delegated token in this demo because the agent
-does not request a specific backend resource. In a real deployment the
-agent — which knows which backend it needs — passes the target URI in the
-`resources` parameter of `GetResourceOauth2Token`; AgentCore Identity
-carries it into the token-exchange request (RFC 8707 `resource`), and
-PingFederate's token mapping stamps the delegated token's `aud` from it.
+The `aud` chain: the **agent** — which knows which backend it needs —
+passes the target URI in `GetResourceOauth2Token`'s `resources` parameter;
+AgentCore Identity carries it into the token-exchange request (RFC 8707
+`resource`); PingFederate's delegated ATM selects on the registered
+resource URI and its token mapping stamps the delegated token's `aud` from
+it. A `resource` that no ATM claims is rejected with `invalid_target`.
 
 ## What the deployed agent actually does
 
