@@ -81,7 +81,7 @@ sequenceDiagram
     S-->>I: AWS IAM identity JWT, actor token
     I->>PF: RFC 8693 exchange, assertion + subject + actor
     PF->>S: fetch JWKS, actor-token verification keys
-    PF->>PF: validate assertion, subject, actor; build claims
+    PF->>PF: validate assertion, subject, actor, build claims
     PF-->>I: delegated token, sub = user, act.sub = agent role
     I-->>A: access token
     A->>A: decode claims, display only
