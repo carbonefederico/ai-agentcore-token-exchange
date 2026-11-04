@@ -35,7 +35,7 @@
         "customJwtAuthorizer": {
           "discoveryUrl": "https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com/.well-known/openid-configuration",
           "allowedAudience": [
-            "https://agentcore.demo.internal/invoke"
+            "https://agentcore.demo.internal/agents/exchange_agent/invoke"
           ]
         }
       }

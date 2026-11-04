@@ -454,7 +454,7 @@
                     "fields": [
                       {
                         "name": "Audience",
-                        "value": "https://agentcore.demo.internal/invoke"
+                        "value": "https://agentcore.demo.internal/agents/exchange_agent/invoke"
                       }
                     ]
                   }
@@ -710,7 +710,7 @@
               },
               {
                 "name": "Audience Claim Value",
-                "value": "https://agentcore.demo.internal/invoke"
+                "value": "https://agentcore.demo.internal/agents/exchange_agent/invoke"
               },
               {
                 "name": "Type Header Value",

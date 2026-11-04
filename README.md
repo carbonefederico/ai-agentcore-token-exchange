@@ -29,7 +29,7 @@ ends once the claims are on screen.
 
 ## Logical architecture
 
-Each block is one component:
+The architecture for this POC includes the following components:
 
 - **Demo CLI** — logs the user in with a browser and invokes the agent.
 - **AgentCore Inbound Token Validator** — validates the user JWT before
