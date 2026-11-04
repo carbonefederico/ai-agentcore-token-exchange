@@ -79,17 +79,22 @@ Four tokens participate in the demo:
 **1. User token — issued by PingFederate after the browser login**
 (`tests/demo_cli.py`, Authorization Code + PKCE as the confidential client
 `agentcore-demo-cli`). This is the exchange's **subject token**; AgentCore
-Runtime validates it with its custom JWT authorizer before forwarding it:
+Runtime validates it with its custom JWT authorizer before forwarding it.
+In this demo it is a token minted specifically for this agent: its
+audience names the agent's invoke endpoint
+(`https://agentcore.demo.internal/agents/exchange_agent/invoke`), so it is
+only consumable by this agent's runtime authorizer — not by any other
+agent or API that trusts the issuer:
 
 ```json
 {
   "iss": "https://ai-agentcore-token-exchange-pingfederate-engine.ping-devops.com",
-  "aud": "https://agentcore.demo.internal/invoke",
+  "aud": "https://agentcore.demo.internal/agents/exchange_agent/invoke",
   "sub": "demouser",
   "client_id": "agentcore-demo-cli",
   "scope": "openid demo:read",
-  "iat": 1793712826,
-  "exp": 1793713726
+  "iat": 1793801505,
+  "exp": 1793802405
 }
 ```
 
