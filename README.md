@@ -1,26 +1,47 @@
 # AgentCore ⇄ PingFederate delegated token exchange
 
-A proof of concept for **delegated, secretless OAuth between an AI agent on
-AWS Bedrock AgentCore and APIs protected by PingFederate**.
+When an AI agent does something for a user, the service on the receiving
+end needs to answer two questions: **who is this acting for**, and **what
+acted for them**. Handing the agent the user's own token answers the first
+question but leaks user credentials into the agent; giving the agent its
+own service account answers the second but erases the user from the
+picture. This project demonstrates the OAuth standard built for exactly
+this — the **Token Exchange grant (RFC 8693)** — in a fully secretless
+setup on AWS Bedrock AgentCore and PingFederate: the agent's platform
+identity (AWS-signed, nothing stored) authenticates the exchange, the
+user's token is the subject, and PingFederate issues one short-lived token
+that carries both identities (`sub` = user, `act.sub` = agent). AgentCore
+Identity drives the whole outbound flow, so the agent code holds no OAuth
+logic and no credentials.
 
-The problem: an agent acting for a user must call downstream APIs with a
-token that proves **both** who the user is and which agent acted for them —
-without storing any secret in the agent. The solution: the OAuth 2.0 Token
-Exchange grant (RFC 8693). The agent's platform identity (AWS KMS-signed)
-authenticates the exchange, the user's token is the subject, and
-PingFederate issues one short-lived token carrying both identities
-(`sub` = user, `act.sub` = agent). AgentCore Identity drives the whole
-outbound flow, so the agent code holds no OAuth logic and no credentials.
+**What this demo is (and is not).** It covers the identity chain end to
+end: PingFederate on Kubernetes (declarative server profile), an agent on
+AgentCore Runtime, a demo CLI, and the identity wiring between them (KMS
+key, credential provider, IAM grants). Running `tests/demo_cli.py` logs a
+user in, invokes the agent, and prints the delegated token's claims. The
+agent itself is a **dummy**: it performs no work beyond triggering the
+exchange and returning the token's claims to the caller — no LLM, no
+downstream calls. There is no resource server in this project; the demo
+ends once the claims are on screen.
 
-- What gets built: PingFederate on k8s (declarative server profile), an
-  agent on AgentCore Runtime, a demo CLI — and the identity wiring between
-  them (KMS key, credential provider, IAM grants).
-- The end state: `tests/demo_cli.py` logs a user in, invokes the agent, and
-  prints the delegated token's claims showing user + agent identity.
 - Full architecture: **[docs/architecture.md](docs/architecture.md)** —
   flow, components, token shape, and design rationale.
 
 ## Logical architecture
+
+Each block is one component:
+
+- **Demo CLI** — logs the user in with a browser and invokes the agent.
+- **AgentCore Inbound Token Validator** — validates the user JWT before
+  the invocation reaches the agent.
+- **Hosted Agent - AgentCore** — the dummy agent: triggers the exchange,
+  returns the claims.
+- **AgentCore Outbound Token Generator** — signs the client assertion and
+  runs the token exchange on the agent's behalf.
+- **KMS** — holds the signing key for the client assertion.
+- **STS** — issues the AWS identity JWT used as the actor token.
+- **PingFederate** — authenticates the user, validates all three inputs,
+  and issues the delegated token.
 
 ```mermaid
 flowchart LR
