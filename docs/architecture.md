@@ -1,10 +1,18 @@
 # Architecture — AgentCore ⇄ PingFederate delegated token exchange
 
-Delegated, secretless OAuth access between an AI agent on **AWS Bedrock
-AgentCore** and a resource server protected by **PingFederate**. The agent
-invokes downstream resources with a single token that carries both who the
-**user** is and which **agent** acted for them — the shape required for
-auditable agent actions (`sub` + `act.sub`, RFC 8693).
+**The goal** is delegated, secretless OAuth between an AI agent on
+**AWS Bedrock AgentCore** and a resource server protected by
+**PingFederate**: the agent invokes downstream resources with a single
+token that carries both who the **user** is and which **agent** acted for
+them — the shape required for auditable agent actions (`sub` + `act.sub`,
+RFC 8693).
+
+**The demo stops at the token.** No resource server is deployed and
+nothing consumes the delegated token; what this POC builds and verifies is
+the identity chain that *issues* that token — user login, workload
+identity, and the token exchange itself. A downstream resource server
+would plug in behind it, validating the token's `sub`, `act.sub`, and
+`aud`.
 
 ## The problem this solves
 
@@ -78,8 +86,8 @@ Issued by PingFederate (`AgentCoreDelegatedATM`, RS256 `at+jwt`, 15 min):
 | Claim | Value | Source |
 |---|---|---|
 | `sub` | the user (`demouser`) | subject token's `sub` |
-| `act.sub` | the agent (runtime execution role ARN) | actor token's `client_id` |
-| `aud` | the requested resource URI (RFC 8707) | `resource` parameter |
+| `act.sub` | the agent (runtime execution role ARN) | actor token's `sub` (the AWS identity JWT) |
+| `aud` | the requested resource URI (RFC 8707) | the `resources` parameter the agent passes to `GetResourceOauth2Token`, carried as the exchange's `resource` |
 | `scope` | `demo:read` | TEPP-allowed scope |
 
 ## PingFederate configuration
@@ -90,20 +98,22 @@ image re-imposes it at every admin restart). See that directory's README for
 the object-by-object table. The load-bearing pieces:
 
 - **TEPP `AgentCoreTokenExchangePolicy`** — `actorTokenRequired: true`;
-  subject via `PfUserTokenProcessor` (PF-issued user tokens), actor via
-  `PfClientTokenProcessor` (PF-issued tokens, exposes `client_id`), with two
-  mappings because AgentCore Identity sends the actor as an `access_token`
-  type. Contract: `subject` ← subject `sub`, `subject_act` ← actor
-  `client_id`.
+  single mapping: subject via `PfUserTokenProcessor` (PF-issued user
+  tokens), actor via `AwsStsTokenProcessor` (AWS STS identity JWTs,
+  issuer/JWKS pinned to the account's outbound federation). Contract:
+  `subject` ← subject `sub`, `subject_act` ← actor `sub`.
 - **Agent client** — registered with no secret: `PRIVATE_KEY_JWT` client
-  auth, inline JWKS holding the **public key of the KMS key**. Two relaxations
-  in the config store (`issuerMustBeEqualToClientId=false`,
-  `jwtClientAuthenticationExpectedType=JWT`) let it accept the
-  platform-signed assertion. These live in
-  `instance/server/default/data/config-store/oauth-credentials-validator.xml`,
-  registered into `data-default.zip` by the profile's hook override — the
-  config store cannot be managed via console, REST API, or bulk config, and
-  PF prunes loose files in it at boot.
+  auth, inline JWKS holding the **public key of the KMS key**. Three
+  config-store settings make it accept the platform-signed assertion:
+  `issuerMustBeEqualToClientId=false` and `jwtClientAuthenticationExpectedType=JWT`
+  (in `oauth-credentials-validator.xml`) relax the RFC 7523 shape rules,
+  and the token-endpoint URL in `AdditionalAllowedAudiences` (in
+  `org.sourceid.oauth20.domain.AuthzServerManagerImpl.xml`) admits the
+  assertion's `aud`, which AgentCore sets to the full token endpoint. Both
+  files ship in the profile and are registered into `data-default.zip` by
+  the profile's hook override — the config store cannot be managed via
+  console, REST API, or bulk config, and PF restores zip entries over
+  loose files at boot.
 - **`client_id` = the runtime execution role ARN** — AgentCore Identity
   presents itself as the role AWS gave the runtime, so PingFederate can
   bind the actor identity to a real AWS workload.
@@ -117,10 +127,10 @@ the object-by-object table. The load-bearing pieces:
   `GetResourceOauth2Token` on the provider, Secrets Manager read of the
   provider secret, `kms:Sign`/`kms:DescribeKey` on the KMS key, and
   `sts:GetWebIdentityToken` (audience-conditioned) for the actor token.
-- **Out-of-band setup** (not scripted): the KMS key and the
-  `pingfederate-obo-poc` credential provider (CustomOauth2,
-  `private_key_jwt` client auth + `AWS_IAM_ID_TOKEN_JWT` actor token
-  content). The provider combines both settings:
+- **Console-created setup** (created by hand, see the README's Step 2):
+  the KMS key and the `pingfederate-obo-poc` credential provider
+  (CustomOauth2, `private_key_jwt` client auth + `AWS_IAM_ID_TOKEN_JWT`
+  actor token content). The provider combines both settings:
 
   ```json
   {
@@ -143,11 +153,8 @@ the object-by-object table. The load-bearing pieces:
   }
   ```
 
-  **This combination is the unverified piece of the single-call design** —
-  AWS documents the two settings in separate examples; whether the live
-  service accepts them together is exactly what this variant tests. If the
-  create call rejects it or the exchange fails, the fallback is the proven
-  two-call shape (git history: the M2M-actor design).
+  AWS documents the two settings in separate examples; their combination
+  was verified live (2026-11-03) and is the working configuration.
 
 ## Design decisions and their rationale
 
