@@ -219,7 +219,7 @@ PYEOF
 fi
 
 echo
-echo "== Values for the repo =="
+echo "== Repo updates =="
 KMS_ARN="$(aws kms describe-key --region "${REGION}" --key-id "${KMS_KEY_ID}" --query 'KeyMetadata.Arn' --output text)"
 
 # Public key as a JWK for the PF client's inline JWKS (RFC 7517). The DER
@@ -227,7 +227,7 @@ KMS_ARN="$(aws kms describe-key --region "${REGION}" --key-id "${KMS_KEY_ID}" --
 # byte stripped) and exponent, base64url-encoded.
 aws kms get-public-key --region "${REGION}" --key-id "${KMS_KEY_ID}" \
   --output json --query 'PublicKey' > /tmp/kms-pub.json
-JWK="$(python3 - /tmp/kms-pub.json "$KID" <<'PYEOF'
+JWK_JSON="$(python3 - /tmp/kms-pub.json "$KID" <<'PYEOF'
 import base64, json, sys
 
 def ber_read(b, i):
@@ -260,17 +260,75 @@ PYEOF
 )"
 rm -f /tmp/kms-pub.json
 
+# Update the repo files in place. The profile's JWK lives escaped inside a
+# JSON string, so the file edit replaces the embedded n/e values directly;
+# the role ARN and KMS ARN are plain single-occurrence literals.
+PROFILE_DATA="${ROOT_DIR}/server-profiles/pingfederate-agentcore/instance/bulk-config/data.json.subst"
+CDK_STACK="${ROOT_DIR}/agentcore/cdk/lib/cdk-stack.ts"
+
+python3 - "$PROFILE_DATA" "$JWK_JSON" <<'PYEOF'
+import json, re, sys
+
+path, jwk_json = sys.argv[1], sys.argv[2]
+s = open(path).read()
+jwk = json.loads(jwk_json)["keys"][0]
+
+pattern = (r'(\\"kid\\": \\' + re.escape(f'\\"{jwk["kid"]}\\"') +
+           r'(?:[^n]|\\n)*?\\"n\\": \\"([A-Za-z0-9_-]+)\\", \\"e\\": \\"([A-Za-z0-9_-]+)\\"') + r''
+m = re.search(r'\\"kid\\": \\"agentcore-pf-poc-1\\".{0,400}?\\"n\\": \\"([A-Za-z0-9_-]+)\\", \\"e\\": \\"([A-Za-z0-9_-]+)\\"', s)
+if not m:
+    sys.exit("agent client JWK (kid agentcore-pf-poc-1) not found in the profile")
+old_n, old_e = m.group(1), m.group(2)
+if (old_n, old_e) == (jwk["n"], jwk["e"]):
+    print("profile JWK already up to date")
+else:
+    s = s.replace(old_n, jwk["n"]).replace(old_e, jwk["e"])
+    open(path, "w").write(s)
+    print("profile JWK updated (kid agentcore-pf-poc-1)")
+PYEOF
+
+python3 - "$CDK_STACK" "$KMS_ARN" <<'PYEOF'
+import re, sys
+
+path, kms_arn = sys.argv[1], sys.argv[2]
+s = open(path).read()
+m = re.search(r"resources: \['(arn:aws:kms:[^']*key/[^']+)'\]", s)
+if not m:
+    sys.exit("KMS key ARN not found in cdk-stack.ts (KmsSignClientAssertion)")
+if m.group(1) == kms_arn:
+    print("cdk-stack.ts KMS ARN already up to date")
+else:
+    s = s.replace(m.group(1), kms_arn)
+    open(path, "w").write(s)
+    print("cdk-stack.ts KMS ARN updated")
+PYEOF
+
+# The profile's agent clientId is the runtime role ARN (plain literal).
+if [[ -n "${ROLE_ARN:-}" ]]; then
+  python3 - "$PROFILE_DATA" "$ROLE_ARN" <<'PYEOF'
+import re, sys
+
+path, role_arn = sys.argv[1], sys.argv[2]
+s = open(path).read()
+m = re.search(r'"clientId": "(arn:aws:iam::[0-9]+:role/[^"]+)"', s)
+if not m:
+    sys.exit("agent client role-ARN clientId not found in the profile")
+if m.group(1) == role_arn:
+    print("profile clientId already up to date")
+else:
+    s = s.replace(m.group(1), role_arn)
+    open(path, "w").write(s)
+    print("profile clientId updated to the runtime role")
+PYEOF
+else
+  echo "profile clientId left unchanged (runtime not deployed yet)"
+fi
+
 echo
-echo "1. KMS key ID — pin it in agentcore/cdk/lib/cdk-stack.ts (KmsSignClientAssertion grant):"
-echo "   ${KMS_KEY_ID}"
-echo
-echo "2. Public JWK — paste into server-profiles/.../data.json.subst (agent client jwksSettings.jwks):"
-echo "   ${JWK}"
-echo
-echo "3. STS issuer + JWKS — put in .env for scripts/deploy.sh:"
+echo "Remaining manual values:"
+echo "1. STS issuer + JWKS — put in .env for scripts/deploy.sh:"
 echo "   AWS_STS_ISSUER=${STS_ISSUER}"
 echo "   AWS_STS_JWKS_URL=${STS_ISSUER}/.well-known/jwks.json"
 echo
-echo "4. AgentCore runtime role ARN — after 'agentcore deploy', set the provider's clientId:"
-echo "   PF_AGENT_CLIENT_ID=\$(aws bedrock-agentcore-control get-agent-runtime \\"
-echo "     --agent-runtime-id <runtime-id> --region ${REGION} --query roleArn --output text)"
+echo "The public JWK (for reference; the profile is updated in place):"
+echo "   ${JWK_JSON}"
