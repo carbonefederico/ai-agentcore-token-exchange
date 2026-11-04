@@ -1,18 +1,22 @@
 # AgentCore ⇄ PingFederate delegated token exchange
 
 When an AI agent does something for a user, the service on the receiving
-end needs to answer two questions: **who is this acting for**, and **what
-acted for them**. Handing the agent the user's own token answers the first
-question but leaks user credentials into the agent; giving the agent its
-own service account answers the second but erases the user from the
-picture. This project demonstrates the OAuth standard built for exactly
-this — the **Token Exchange grant (RFC 8693)** — in a fully secretless
-setup on AWS Bedrock AgentCore and PingFederate: the agent's platform
-identity (AWS-signed, nothing stored) authenticates the exchange, the
-user's token is the subject, and PingFederate issues one short-lived token
-that carries both identities (`sub` = user, `act.sub` = agent). AgentCore
-Identity drives the whole outbound flow, so the agent code holds no OAuth
-logic and no credentials.
+end needs to know two things: **which user the work is being done for**,
+and **which agent is doing it**. Neither naive option gives both. Handing
+the agent the user's own token identifies the user but says nothing about
+which agent acted — and the token is as powerful as the user, so anything
+the agent does is indistinguishable from the user doing it. Giving the
+agent its own service account identifies the agent but erases the user
+from the picture. This project demonstrates the OAuth standard built for
+exactly this — the **Token Exchange grant (RFC 8693)** — in a fully
+secretless setup on AWS Bedrock AgentCore and PingFederate: the agent
+presents the user's token as the subject and authenticates itself with
+its platform identity (AWS-signed, nothing stored); PingFederate issues
+one short-lived token that carries both identities (`sub` = user,
+`act.sub` = agent). The user's token is consumed by the exchange — a
+resource receives the delegated token, never the user's credential.
+AgentCore Identity drives the whole outbound flow, so the agent code
+holds no OAuth logic and no credentials.
 
 **What this demo is (and is not).** It covers the identity chain end to
 end: PingFederate on Kubernetes (declarative server profile), an agent on
