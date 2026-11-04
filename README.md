@@ -183,59 +183,109 @@ requirements.txt                      CLI/preflight dependencies (requests, boto
 - Ping DevOps user/key for the license (export or `.env`)
 - A git repository hosting `server-profiles/pingfederate-agentcore/`
   (`helm/pingfederate/values.yaml` pins it)
-- AWS credentials for IAM, Bedrock AgentCore, ECR; a customer-managed KMS
-  key (RS256) — the key ID is pinned in `agentcore/cdk/lib/cdk-stack.ts`
+- AWS credentials for IAM, Bedrock AgentCore, ECR (you create the KMS key
+  and credential provider in Step 2)
 - [AgentCore CLI](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-cli.html)
   (`pip install bedrock-agentcore-starter-toolkit`)
 - python3, docker
 
 ## Step 1 — PingFederate on k8s
 
+Three commands deploy a complete authorization server:
+
 ```bash
-./scripts/validate.sh
-./scripts/deploy.sh                     # 1 admin + 1 engine, bulk config at startup
-./scripts/verify.sh                     # confirm import + engine Ready
+./scripts/validate.sh    # lint: shell, bulk-config JSON, helm render
+./scripts/deploy.sh      # helm install of the ping-devops chart: 1 admin + 1 engine
+./scripts/verify.sh      # confirm the bulk config imported and the engine is Ready
 ```
 
-The profile is self-contained: hostname variables are image-provided and
-the KMS client material is inline. It provisions the demo form login, the
-token processors, the token-exchange policy (actor token mandatory), the
-confidential CLI client, and the agent client (KMS public key,
-`private_key_jwt`). See
+`deploy.sh` pulls the configuration from the GitHub repo pinned in
+`helm/pingfederate/values.yaml` (the server profile in this repo — push it
+first if you changed it). At startup the admin node imports the profile as
+one bulk config, which creates **everything the demo needs**:
+
+- a local demo user you can log in with: **`demouser` / `2FederateM0re`**
+  (form login; credentials live in the profile's bulk config),
+- the OAuth client the CLI uses: **`agentcore-demo-cli`**, confidential,
+  secret `cli-demo-secret`, Authorization Code + PKCE + refresh tokens,
+- the OAuth client for the agent: `client_id` = the agent's AWS role ARN,
+  authenticated by `private_key_jwt` — PingFederate holds only the KMS
+  public key (inline in the profile),
+- the token-exchange policy: the user JWT is the subject, the AWS identity
+  JWT is the mandatory actor, and the resulting token carries both
+  identities plus the audience of the requested resource,
+- the token minting rules: RS256 `at+jwt`, 15-minute lifetime, and the
+  resource URI the agent may target (`https://demo.example.internal/resource`,
+  a stand-in for a real MCP server or API).
+
+PingFederate is then reachable at
+`https://<release>-pingfederate-engine.ping-devops.com` (release name =
+this folder's name). Object-by-object detail:
 [server-profiles/pingfederate-agentcore/README.md](server-profiles/pingfederate-agentcore/README.md).
 
-## Step 2 — AWS identity setup (out-of-band)
+## Step 2 — AWS identity pieces
 
-The KMS key and the `pingfederate-obo-poc` credential provider
-(CustomOauth2, `private_key_jwt` client auth, `AWS_IAM_ID_TOKEN_JWT` actor
-  token) are created out-of-band;
-`agentcore/cdk/lib/cdk-stack.ts` documents the IAM shape.
+Two AWS objects exist outside the repo and must exist before the agent
+runs. Create them in the console/CLI (about five minutes):
+
+1. **A customer-managed KMS key** (RSA, `SIGN_VERIFY`) — AgentCore Identity
+   signs the agent's `private_key_jwt` client assertion with it; the
+   private key never leaves KMS. Note its key ID: it is pinned in
+   `agentcore/cdk/lib/cdk-stack.ts` (the `KmsSignClientAssertion` grant),
+   and its **public key is embedded in the server profile** (the agent
+   client's inline JWKS, kid `agentcore-pf-poc-1`) — if you create a new
+   key, update both places.
+2. **The OAuth2 credential provider** `pingfederate-obo-poc`
+   (Bedrock AgentCore Identity console, CustomOauth2): discovery URL =
+   your PingFederate engine's `/.well-known/openid-configuration`,
+   client authentication = `PRIVATE_KEY_JWT` (KMS), and for the
+   on-behalf-of flow `TOKEN_EXCHANGE` with
+   `actorTokenContent = AWS_IAM_ID_TOKEN_JWT` — this is what makes AgentCore
+   fetch an AWS identity JWT to act as the exchange's actor token.
+
+Also record the account's **STS issuer** (from
+`aws iam get-outbound-web-identity-federation-info`; enable it first if
+needed) as `AWS_STS_ISSUER`/`AWS_STS_JWKS_URL` in `.env` — `scripts/deploy.sh`
+passes them to PingFederate, which validates actor tokens against that JWKS.
+
+What the runtime itself gets — its execution role, the `kms:Sign` /
+`sts:GetWebIdentityToken` / token-vault grants — is created by the
+agentcore CLI in the next step, driven by
+`agentcore/cdk/lib/cdk-stack.ts`; nothing to do by hand.
 
 ## Step 3 — Deploy the agent (AgentCore CLI)
 
+One command deploys the agent container and its IAM role:
+
 ```bash
-# edit agentcore/agentcore.json: discoveryUrl → your PF host,
-#   allowedAudience → the AgentCore invoke audience
 agentcore deploy
-agentcore status         # wait for READY; note the runtime ID for the CLI
+agentcore status         # wait for READY; note the runtime ID (…-AbCdEfGhIp)
 ```
 
-The runtime is declared with `requestHeaderAllowlist: ["Authorization"]`
-(forwards the validated user JWT), `protocol: HTTP`, and the custom JWT
-authorizer against PingFederate's OIDC discovery endpoint.
+Before deploying, `agentcore/agentcore.json` points the pieces at each
+other: the **custom JWT authorizer** validates inbound tokens against
+PingFederate's OIDC discovery endpoint and accepts only the invoke
+audience (`allowedAudience`); the `Authorization` header is allowlisted so
+the validated user JWT reaches the agent; and the env vars name the
+credential provider (`pingfederate-obo-poc`), the exchange scope
+(`demo:read`), and the backend resource the agent requests
+(`https://demo.example.internal/resource`). If your PF host differs, edit
+`discoveryUrl` and `allowedAudience` there first.
 
 ## Step 4 — Run the demo
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp tests/config.example.env tests/config.env   # PF_BASE_URL, AGENT_RUNTIME_NAME, etc.
+cp tests/config.example.env tests/config.env   # set PF_BASE_URL + AGENT_RUNTIME_NAME
 
-python3 tests/pf_preflight.py           # optional: endpoints + PF config checks
+python3 tests/pf_preflight.py           # optional: checks PF answers before the flow
 python3 tests/demo_cli.py               # login → invoke agent → claims
 ```
 
-Expected CLI output:
+The CLI opens a browser: log in as **`demouser` / `2FederateM0re`**. It
+then invokes the agent with the resulting user JWT and prints the
+delegated token's claims. Expected output:
 
 ```
 Authenticating user with PingFederate...
@@ -247,25 +297,28 @@ AgentCore Identity:
   Authentication method:   KMS-signed private_key_jwt (no client secret)
 Exchanged PingFederate token claims:
 {
+  "sub": "demouser",
   "act": { "sub": "arn:aws:iam::<account>:role/AgentCore-tokenexchangeag-..." },
-  "aud": "<DEMO_RESOURCE_URI>",
+  "aud": "https://demo.example.internal/resource",
   "scope": "demo:read",
-  "sub": "demouser"
+  ...
 }
 RESULT: SUCCESS
 ```
 
-The agent source also contains the LLM/tool reference code, **commented
-out** with a disclaimer: the demo's goal is the delegated exchange; that
-code shows how the exchanged token would be used downstream by a real agent.
+`sub` proves the user identity, `act.sub` the agent's AWS role, `aud` the
+backend the agent requested — the three facts a downstream resource server
+would check.
 
 ## Teardown
 
 ```bash
-./scripts/teardown-aws.sh  # runtime (agentcore CLI) + credential provider;
-                         # the KMS key is out-of-band and not removed
-./scripts/uninstall.sh   # PingFederate release
+./scripts/teardown-aws.sh  # AgentCore stack (agentcore CLI) + credential provider
+./scripts/uninstall.sh     # PingFederate release
 ```
+
+The KMS key is not deleted by teardown (it may hold other grants); remove
+it in the console if you no longer need it.
 
 ## Security
 
