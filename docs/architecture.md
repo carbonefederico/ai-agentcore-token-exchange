@@ -1,36 +1,41 @@
 # Architecture — AgentCore ⇄ PingFederate delegated token exchange
 
-**The goal** is delegated, secretless OAuth between an AI agent on
-**AWS Bedrock AgentCore** and a resource server protected by
-**PingFederate**: the agent invokes downstream resources with a single
-token that carries both who the **user** is and which **agent** acted for
-them — the shape required for auditable agent actions (`sub` + `act.sub`,
-RFC 8693).
+## The scenario
 
-**The demo stops at the token.** No resource server is deployed and
-nothing consumes the delegated token; what this POC builds and verifies is
-the identity chain that *issues* that token — user login, workload
-identity, and the token exchange itself. A downstream resource server
-would plug in behind it, validating the token's `sub`, `act.sub`, and
-`aud`.
+Agents are becoming the ones doing the work: an agent acts on behalf of a
+user, or on behalf of another agent, and to get anything done it must call
+resources — APIs, MCP servers, downstream services. Those calls need a
+security token that says who the work is being done **for** and what is
+doing it: if the token only identifies a person, the caller cannot tell
+which agent ran; if it only identifies an agent, the call is not
+attributable to anyone. OAuth token exchange (RFC 8693) exists for this:
+the agent presents the token of whoever it acts for as the **subject**, its
+own credentials as the **actor**, and receives one short-lived token
+carrying both identities (`sub` + `act.sub`).
+
+This demo applies that concept to an agent deployed to **AWS Bedrock
+AgentCore**, with **PingFederate** as the authorization server. The demo
+includes a dummy agent — it receives the user's invocation, triggers the
+exchange, and returns the resulting token's claims to the caller; it calls
+no downstream resource and runs no model. The point being demonstrated is
+the **issuance** of the delegated token: how a secretless agent (no stored
+credentials of any kind) proves itself to PingFederate, how the user's and
+the agent's identities end up in one token, and what that token looks
+like. A real deployment would continue from there — the resource server
+validating the token's `sub`, `act.sub`, and `aud` — but no resource
+server exists in this project and nothing consumes the token.
 
 ## The problem this solves
 
-An agent acting on a user's behalf needs to call APIs as the user. The naive
-options all fail:
-
-- Sharing the user's token with the agent leaks user credentials to the
-  agent runtime.
-- A service account for the agent loses the user's identity — actions are
-  no longer attributable to a person.
-- Long-lived client secrets on the agent are a leak risk and rotation burden.
-
-The solution is the OAuth 2.0 Token Exchange grant (RFC 8693): a party the
-authorization server already trusts (the agent, via its platform identity)
-presents the user's token as the **subject** and its own credentials as the
-**actor**, and receives a fresh, short-lived token carrying both identities.
-AgentCore Identity performs this exchange automatically so the agent code
-never touches OAuth.
+Beyond attributing the action, the exchange must not create new secrets.
+The conventional fix — a client credential for the agent — puts a
+long-lived secret inside the agent runtime: one more thing to leak and
+rotate. This design stores nothing: the agent's "credential" is minted at
+call time by the platform it runs on. AgentCore Identity signs the client
+assertion with a KMS key (the private key never leaves AWS), obtains an
+AWS-signed identity JWT from STS as the actor token, and drives the whole
+RFC 8693 exchange against PingFederate — so the agent code never touches
+OAuth, signs nothing, and holds no secrets.
 
 ## Components
 
