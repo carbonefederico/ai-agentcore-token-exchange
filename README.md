@@ -28,11 +28,11 @@ flowchart LR
 
     subgraph aws["AWS"]
         direction TB
-        RT["AgentCore Runtime\ninbound token validator"]
-        AG["Hosted agent\nidentity harness"]
-        ID["AgentCore Identity\noutbound token generator"]
-        KMS["AWS KMS\nclient-assertion key"]
-        STS["AWS STS\nIAM identity JWT issuer"]
+        RT["AgentCore Inbound Token Validator"]
+        AG["Hosted Agent - AgentCore"]
+        ID["AgentCore Outbound Token Generator"]
+        KMS["KMS\nclient-assertion key"]
+        STS["STS\nIAM identity JWT issuer"]
     end
 
     PF["PingFederate k8s\nlogin + token exchange + ATM"]
@@ -42,52 +42,13 @@ flowchart LR
     CLI -- "3. invoke, Bearer user JWT" --> RT
     RT -- "4. forward" --> AG
     AG -- "5. GetResourceOauth2Token" --> ID
-    ID -- "sign client assertion" --> KMS
-    ID -- "actor token: sts:GetWebIdentityToken" --> STS
-    ID -- "6. RFC 8693 exchange: assertion + subject + actor" --> PF
-    PF -- "7. delegated token" --> ID
+    ID -- "6. sign client assertion" --> KMS
+    ID -- "7. actor token: sts:GetWebIdentityToken" --> STS
+    ID -- "8. RFC 8693 exchange: assertion + subject + actor" --> PF
     PF -- "fetch actor-token verification keys: STS JWKS" --> STS
-    ID -- "8. access token" --> AG
-    AG -- "9. claims only" --> CLI
-```
-
-## Exchange sequence
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as User
-    participant C as CLI
-    participant PF as PingFederate
-    participant RT as AgentCore Runtime
-    participant A as Hosted agent
-    participant I as AgentCore Identity
-    participant K as AWS KMS
-    participant S as AWS STS
-
-    U->>C: start demo
-    C->>PF: authorization request, auth-code + PKCE
-    PF->>U: login form
-    U->>PF: credentials, demouser
-    PF-->>C: redirect with code
-    C->>PF: token request, code + verifier
-    PF-->>C: user JWT, subject token
-    C->>RT: invoke, Bearer user JWT
-    RT->>RT: custom JWT authorizer validates against PF discovery
-    RT->>A: invoke, workload token + user JWT
-    A->>I: GetResourceOauth2Token, OBO exchange, scopes, resources
-    I->>K: kms:Sign, client assertion, ~90 s
-    I->>S: sts:GetWebIdentityToken, aud = PF token endpoint
-    S-->>I: AWS IAM identity JWT, actor token
-    I->>PF: RFC 8693 exchange, assertion + subject + actor
-    PF->>S: fetch JWKS, actor-token verification keys
-    PF->>PF: validate assertion, subject, actor, build claims
-    PF-->>I: delegated token, sub = user, act.sub = agent role
-    I-->>A: access token
-    A->>A: decode claims, display only
-    A-->>RT: claims
-    RT-->>C: claims
-    C->>C: print claims
+    PF -- "9. delegated token" --> ID
+    ID -- "10. access token" --> AG
+    AG -- "11. claims only" --> CLI
 ```
 
 ## The tokens
