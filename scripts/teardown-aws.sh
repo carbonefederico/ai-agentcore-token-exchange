@@ -28,5 +28,6 @@ aws bedrock-agentcore-control delete-oauth2-credential-provider \
   --region "${REGION}" || true
 
 echo
-echo "Teardown complete. Not removed (created out-of-band, delete manually if needed):"
+echo "Teardown complete. Not removed (created by setup-aws.sh, delete manually if needed):"
 echo "  - the KMS key used for the private_key_jwt client assertion"
+echo "    (remove with: aws kms schedule-key-deletion --key-id <key-id>)"

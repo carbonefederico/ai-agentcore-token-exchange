@@ -132,10 +132,13 @@ the object-by-object table. The load-bearing pieces:
   `GetResourceOauth2Token` on the provider, Secrets Manager read of the
   provider secret, `kms:Sign`/`kms:DescribeKey` on the KMS key, and
   `sts:GetWebIdentityToken` (audience-conditioned) for the actor token.
-- **Console-created setup** (created by hand, see the README's Step 2):
-  the KMS key and the `pingfederate-obo-poc` credential provider
-  (CustomOauth2, `private_key_jwt` client auth + `AWS_IAM_ID_TOKEN_JWT`
-  actor token content). The provider combines both settings:
+- **Script-created setup** (`scripts/setup-aws.sh`, see the README's
+  Step 1): the KMS key and the `pingfederate-obo-poc` credential provider
+  (CustomOauth2, `private_key_jwt` client auth bound to the KMS key +
+  `AWS_IAM_ID_TOKEN_JWT` actor token content). The provider combines both
+  settings — the snippet omits the key binding (`privateKeyJwtConfig`)
+  because the local AWS CLI's service model predates it; the script drives
+  the provider API through a raw signed request:
 
   ```json
   {

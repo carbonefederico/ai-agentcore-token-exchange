@@ -200,7 +200,7 @@ tests/pf_common.py                    Shared login helpers (PKCE flow, token cac
 tests/pf_preflight.py                 Read-only PingFederate preflight checks
 server-profiles/pingfederate-agentcore/  Declarative PF config (bulk config)
 helm/pingfederate/values.yaml         Overrides for Ping's official chart
-scripts/                              deploy / verify / validate / uninstall
+scripts/                              setup / deploy / verify / validate / uninstall
 scripts/teardown-aws.sh               AgentCore stack + provider removal
 tests/config.example.env              Smoke-test config template → copy to tests/config.env
 .env.example                          Helm deployment template → copy to .env
@@ -213,13 +213,61 @@ requirements.txt                      CLI/preflight dependencies (requests, boto
 - Ping DevOps user/key for the license (export or `.env`)
 - A git repository hosting `server-profiles/pingfederate-agentcore/`
   (`helm/pingfederate/values.yaml` pins it)
-- AWS credentials for IAM, Bedrock AgentCore, ECR (you create the KMS key
-  and credential provider in Step 2)
+- AWS credentials for IAM, KMS, Bedrock AgentCore, ECR (`scripts/setup-aws.sh`
+  creates the KMS key and credential provider in Step 1)
 - [AgentCore CLI](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/agentcore-cli.html)
   (`pip install bedrock-agentcore-starter-toolkit`)
 - python3, docker
 
-## Step 1 — PingFederate on k8s
+## Step 1 — AWS identity pieces
+
+One script creates both AWS objects the token exchange needs outside the
+repo, and prints every value that must be copied back into it:
+
+```bash
+./scripts/setup-aws.sh
+```
+
+The script is idempotent — existing objects are detected and reused, never
+overwritten — so re-running it is always safe. It creates:
+
+1. **A customer-managed KMS key** (RSA 2048, `SIGN_VERIFY`) with a policy
+   letting the `bedrock-agentcore` service sign — AgentCore Identity signs
+   the agent's `private_key_jwt` client assertion with it; the private key
+   never leaves KMS.
+2. **The OAuth2 credential provider** `pingfederate-obo-poc` (CustomOauth2):
+   discovery points at this deployment's PingFederate engine, client
+   authentication is `PRIVATE_KEY_JWT` bound to the KMS key (assertion
+   `kid` = `agentcore-pf-poc-1`), and the on-behalf-of flow is
+   `TOKEN_EXCHANGE` with `actorTokenContent = AWS_IAM_ID_TOKEN_JWT` — this
+   is what makes AgentCore fetch an AWS identity JWT to act as the
+   exchange's actor token. The script also enables STS JWT vending
+   (`enable-outbound-web-identity-federation`), which mints that actor
+   token, when the account has it disabled.
+
+Then feed the script's output back into the repo — this is why this step
+comes first:
+
+- the **KMS key ID** into `agentcore/cdk/lib/cdk-stack.ts` (the
+  `KmsSignClientAssertion` grant),
+- the **public JWK** into
+  `server-profiles/pingfederate-agentcore/instance/bulk-config/data.json.subst`
+  (the agent client's inline JWKS — PingFederate holds only this public
+  key),
+- the **STS issuer + JWKS URL** into `.env`
+  (`AWS_STS_ISSUER` / `AWS_STS_JWKS_URL`, consumed by
+  `scripts/deploy.sh`) — PingFederate validates actor tokens against that
+  JWKS.
+
+The provider's `clientId` is the runtime execution role, which does not
+exist until `agentcore deploy` (Step 3) creates it. The script handles
+this automatically: the provider starts with a placeholder, and a re-run
+of `./scripts/setup-aws.sh` after the agent deploy binds the real role
+ARN. One caveat: the local AWS CLI's service model predates the KMS key
+binding (`privateKeyJwtConfig`) and cannot manage this provider shape, so
+the script drives the provider API through a raw signed request.
+
+## Step 2 — PingFederate on k8s
 
 Three commands deploy a complete authorization server:
 
@@ -253,44 +301,7 @@ PingFederate is then reachable at
 this folder's name). Object-by-object detail:
 [server-profiles/pingfederate-agentcore/README.md](server-profiles/pingfederate-agentcore/README.md).
 
-## Step 2 — AWS identity pieces
-
-Two AWS objects exist outside the repo and must exist before the agent
-runs. Create them in the console/CLI (about five minutes):
-
-1. **A customer-managed KMS key** (RSA, `SIGN_VERIFY`) — AgentCore Identity
-   signs the agent's `private_key_jwt` client assertion with it; the
-   private key never leaves KMS. Note its key ID: it is pinned in
-   `agentcore/cdk/lib/cdk-stack.ts` (the `KmsSignClientAssertion` grant),
-   and its **public key is embedded in the server profile** (the agent
-   client's inline JWKS, kid `agentcore-pf-poc-1`) — if you create a new
-   key, update both places.
-2. **The OAuth2 credential provider** `pingfederate-obo-poc`
-   (Bedrock AgentCore Identity console, CustomOauth2): discovery URL =
-   your PingFederate engine's `/.well-known/openid-configuration`,
-   client authentication = `PRIVATE_KEY_JWT` (KMS), and for the
-   on-behalf-of flow `TOKEN_EXCHANGE` with
-   `actorTokenContent = AWS_IAM_ID_TOKEN_JWT` — this is what makes AgentCore
-   fetch an AWS identity JWT to act as the exchange's actor token.
-
-Also record the account's **STS issuer** (from
-`aws iam get-outbound-web-identity-federation-info`; enable it first if
-needed) as `AWS_STS_ISSUER`/`AWS_STS_JWKS_URL` in `.env` — `scripts/deploy.sh`
-passes them to PingFederate, which validates actor tokens against that JWKS.
-
-What the runtime itself gets — its execution role, the `kms:Sign` /
-`sts:GetWebIdentityToken` / token-vault grants — is created by the
-agentcore CLI in the next step, driven by
-`agentcore/cdk/lib/cdk-stack.ts`; nothing to do by hand.
-
 ## Step 3 — Deploy the agent (AgentCore CLI)
-
-One command deploys the agent container and its IAM role:
-
-```bash
-agentcore deploy
-agentcore status         # wait for READY; note the runtime ID (…-AbCdEfGhIp)
-```
 
 Before deploying, `agentcore/agentcore.json` points the pieces at each
 other: the **custom JWT authorizer** validates inbound tokens against
@@ -301,6 +312,19 @@ credential provider (`pingfederate-obo-poc`), the exchange scope
 (`demo:read`), and the backend resource the agent requests
 (`https://demo.example.internal/resource`). If your PF host differs, edit
 `discoveryUrl` and `allowedAudience` there first.
+
+One command deploys the agent container and its IAM role:
+
+```bash
+agentcore deploy
+agentcore status         # wait for READY; note the runtime ID (…-AbCdEfGhIp)
+```
+
+The agentcore CLI also creates the runtime's execution role and its IAM
+grants (`kms:Sign`, `sts:GetWebIdentityToken`, token vault), driven by
+`agentcore/cdk/lib/cdk-stack.ts`. After this step, re-run
+`./scripts/setup-aws.sh` once: it binds the new role ARN into the
+credential provider's `clientId` (Step 1 explains why).
 
 ## Step 4 — Run the demo
 
@@ -347,8 +371,8 @@ would check.
 ./scripts/uninstall.sh     # PingFederate release
 ```
 
-The KMS key is not deleted by teardown (it may hold other grants); remove
-it in the console if you no longer need it.
+The KMS key created in Step 1 is not deleted by teardown (it may hold
+other grants); remove it in the console if you no longer need it.
 
 ## Security
 
